@@ -14,7 +14,8 @@
                 for (let [half, schHalf] of Object.entries(schDay)) {
                     if (half[2] === '_') continue
                     for (let session of schHalf) {
-                        let content = `Year ${session.batch} Section ${session.section + 1}, ${session.subject.code}, ${session.subject.title}`
+                        let sec = typeof session.section == 'number' ? 'Section ' + session.section : session.section
+                        let content = `Year ${session.batch}\n${sec}\n${session.subject.code}\n${session.subject.title}`
                         rows[row + offset][col] = {session: content, span: session.ects, color: session.color}
                         offset += session.ects
                     }

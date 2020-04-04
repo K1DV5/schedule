@@ -15,7 +15,7 @@
                     for (let [half, schHalf] of Object.entries(schDay)) {
                         if (half[2] === '_') continue
                         for (let session of schHalf) {
-                            let content = `${session.subject.code}, ${session.subject.title}, Room ${session.room}`
+                            let content = `${session.subject.code}\n${session.subject.title}\nRoom ${session.room}`
                             rows[row + offset][col] = {session: content, span: session.ects, color: session.color}
                             offset += session.ects
                         }
@@ -26,7 +26,7 @@
                         offset = 0
                     }
                 }
-                sectionSchedule.push({batch, section: isNaN(section) ? section : Number(section) + 1, schedule: rows})
+                sectionSchedule.push({batch, section, schedule: rows})
             }
         }
         return sectionSchedule
@@ -69,5 +69,12 @@
         font-size: 8pt;
         width: 3cm;
         height: 1cm
+    }
+    :global(table) {
+        border-collapse: collapse
+    }
+    :global(td) {
+        white-space: pre-line;
+        text-align: center
     }
 </style>

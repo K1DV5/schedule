@@ -1,13 +1,14 @@
-function getData(text) {
+function getData(data) {
     // data
-    let semester = 1
-    let periods = [5, 5]
-    let days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat']
-    let rooms = ['311', '313', '310', '319', '320', '321', '338', '339']
+    let semester = data.semester
+    let periods = data.periods
+    let days = data.days
+    let rooms = data.rooms
     // let sections = [2, 3, 2, 3, ['thermal', 'industrial', 'design', 'motor', 'manufacturing']]  // for the streams
-    let sections = [2, 3, 2, 3, ['thermal', 'industrial', 'design', 'motor', 'manufacturing', 'railway']]  // for the streams
+    // let sections = [2, 3, 2, 3, ['thermal', 'industrial', 'design', 'motor', 'manufacturing', 'railway']]  // for the streams
+    let sections = data.students
     let merge = {5: [['manufacturing', 'industrial'], ['motor', 'design']]}
-    let inputLines = String(text).trim().replace(/[\r�]/g, '').split('\n')
+    let inputLines = String(data.subjects).trim().replace(/[\r\ufffd]/g, '').split('\n')
     if (!inputLines) return
     let data_subjects = []
     let keys = inputLines[0].split('\t')
@@ -34,14 +35,19 @@ function getData(text) {
 
 function getSubjects(data, semester, sections) {
     let subjects = {}
-    for (let [index, sec] of sections.entries()) {
-        let secs = isNaN(sec) ? sec : [...Array(sec).keys()]
-        subjects[index + 1] = {subjects: [], sections: secs}
+    for (let [batch, sec] of Object.entries(sections)) {
+        let secs = Object.entries(sec).filter(([_, studs]) => studs).map(([sec, _]) => sec)
+        subjects[batch] = {subjects: [], sections: secs}
     }
     for (let row of data) {
         if (row.semester !== semester) continue
         let row_data = {elective: row.elective, code: row.code, title: row.title, ects: row.ects}
         subjects[row.year].subjects.push(row_data)
+    }
+    for (let [batch, data] of Object.entries(subjects)) {  // remove empty batches
+        if (!data.subjects.length || !data.sections.length) {
+            delete subjects[batch]
+        }
     }
     return subjects
 }
@@ -141,12 +147,13 @@ function emptySchedule(data, days, rooms) {
     return {by_room, by_section}
 }
 
-function makeSchedule(text) {
-    let data = getData(text)
+function makeSchedule(data) {
+    data = getData(data)
     if (!data) return
     let spaces = getSpaceCombos(data.rooms, data.days)
     let {by_room, by_section} = emptySchedule(data.subjects_data, data.days, data.rooms)
 
+    console.log(data.subjects_data)
     for (let [batch, props_batch] of Object.entries(data.subjects_data)) {
         let n_subjects = props_batch.subjects.length
         if (!n_subjects) continue
@@ -167,7 +174,7 @@ function makeSchedule(text) {
                 }
                 if (secsMerged.includes(section)) {
                     assignedSections[subject.code] = assignedSections[subject.code].concat(secsMerged)
-                    secName = secsMerged.join(', ')
+                    secName = secsMerged.join(' & ')
                     secs = secsMerged
                 } else {
                     secName = section
