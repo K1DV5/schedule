@@ -4,8 +4,6 @@ function getData(data) {
     let periods = data.periods
     let days = data.days
     let rooms = data.rooms
-    // let sections = [2, 3, 2, 3, ['thermal', 'industrial', 'design', 'motor', 'manufacturing']]  // for the streams
-    // let sections = [2, 3, 2, 3, ['thermal', 'industrial', 'design', 'motor', 'manufacturing', 'railway']]  // for the streams
     let sections = data.students
     let merge = {5: [['manufacturing', 'industrial'], ['motor', 'design']]}
     let inputLines = String(data.subjects).trim().replace(/[\r\ufffd]/g, '').split('\n')
@@ -20,17 +18,9 @@ function getData(data) {
     let ects_div = {2: [2], 3: [1, 2], 5: [2, 3], 6: [3, 3], 7: [2, 5]} // how to divide ectses
     let subjects_data = getSubjects(data_subjects, semester, sections)
     for (let [batch, pairs] of Object.entries(merge)) subjects_data[batch].merge = pairs
-    // for (let [batch, pairs] of Object.entries(merge)) subjects_data[batch].merge = pairs.reduce((withProp, val) => [...withProp, {pair: val, assigned: false}], [])
-    // validate
     let ects_avail = (periods[0] + periods[1]) * rooms.length * days.length
     let ects_spaces = ectsRequiredForDivisions(ects_div, periods)
-    let ects_req = ectsRequired(subjects_data, ects_spaces, ects_div)
-    if (ects_avail > ects_req) {
-        console.log('ects required:', ects_req, ', ects available:', ects_avail)
-    } else {
-        throw Error(`Not enough space or time, ${ects_avail} < ${ects_req}`)
-    }
-    return {subjects_data, rooms, days, ects_div, ects_spaces, merge}
+    return {subjects_data, rooms, days, ects_div, ects_spaces, merge, ects_avail}
 }
 
 function getSubjects(data, semester, sections) {
@@ -71,50 +61,6 @@ function ectsRequiredForDivisions(ects_div, periods) {
     return ects_spaces
 }
 
-function ectsRequired(data, ects_spaces, ects_div) {
-    // get the required space and time in ects
-    let ects_req = 0
-    for (let batch of Object.values(data)) {
-        let sections = 0
-        if (batch.merge === undefined) {
-            sections = batch.sections.length
-        } else { // consider merged sections
-            let consideredSections = []
-            for (let section of batch.sections) {
-                if (consideredSections.includes(section)) {
-                    continue
-                }
-                let merged
-                for (let pair of batch.merge) {
-                    if (pair.includes(section)) {
-                        consideredSections = [...consideredSections, ...pair]
-                        merged = true
-                        sections++
-                    }
-                }
-                if (!merged) sections++
-            }
-        }
-        let electives_ects = 0
-        for (let subj of batch.subjects) {
-            // actual space in ects required after dividing
-            let division = ects_div[subj.ects]
-            if (!division) {
-                console.log('No division for ', subj)
-                continue
-            }
-            let ects_space = ects_div[subj.ects].map(ects => ects_spaces[ects]).reduce((sum, ects) => sum + ects)
-            if (subj.elective) {  // for specific, count once
-                electives_ects += ects_space
-            } else {  // common, for all
-                ects_req += sections * ects_space
-            }
-        }
-        ects_req += electives_ects
-    }
-    return ects_req
-}
-
 function getSpaceCombos(rooms, days) {
     // room-time combinations
     let spaces = []
@@ -124,7 +70,7 @@ function getSpaceCombos(rooms, days) {
             spaces.push([[room, day, 'afternoon'], {assigned: [], empty: 5}])
         }
     }
-    return Object.fromEntries(spaces)
+    return spaces
 }
 
 function emptySchedule(data, days, rooms) {
@@ -147,13 +93,47 @@ function emptySchedule(data, days, rooms) {
     return {by_room, by_section}
 }
 
-function makeSchedule(data) {
-    data = getData(data)
-    if (!data) return
+function chooseSpace(spaces, ects_space, sectionData, assigned_days) {
+    let more_spaces = [], exact_spaces = []
+    for (let [space, props_space] of spaces) {
+        let empty = props_space.empty
+        let [_, day, half_day] = space
+        if (empty < ects_space || sectionData[day]['sp_' + half_day] < ects_space
+            || assigned_days.includes(day)) continue  // not desired
+        if (empty == ects_space) {
+            exact_spaces.push([space, props_space])
+        } else {
+            more_spaces.push([space, props_space])
+        }
+    }
+    let available = exact_spaces.length ? exact_spaces : more_spaces
+    if (!available.length) return
+    return available[Math.floor(Math.random() * available.length)]
+}
+
+function ifMerged(section, sections, assigned) {
+    let secName, secsMerged = [], secs
+    for (let mrg of sections || []) {
+        if (mrg.includes(section)) {
+            secsMerged = mrg
+            break
+        }
+    }
+    if (secsMerged.includes(section)) {
+        secsMerged.map(sec => assigned.push(sec))  // in place
+        secName = secsMerged.join(' & ')
+        secs = secsMerged
+    } else {
+        secName = section
+        secs = [section]
+    }
+    return [secName, secs]
+}
+
+function schedule(data, dry) {
+    let spaces_req = 0
     let spaces = getSpaceCombos(data.rooms, data.days)
     let {by_room, by_section} = emptySchedule(data.subjects_data, data.days, data.rooms)
-
-    console.log(data.subjects_data)
     for (let [batch, props_batch] of Object.entries(data.subjects_data)) {
         let n_subjects = props_batch.subjects.length
         if (!n_subjects) continue
@@ -165,41 +145,15 @@ function makeSchedule(data) {
             let assignedSections = Object.fromEntries(props_batch.subjects.map(sub => [sub.code, []]))
             for (let section of props_batch.sections) {
                 if (subject.elective && subject.elective !== section || assignedSections[subject.code].includes(section)) continue
-                let secName, secsMerged = [], secs
-                for (let mrg of props_batch.merge || []) {
-                    if (mrg.includes(section)) {
-                        secsMerged = mrg
-                        break
-                    }
-                }
-                if (secsMerged.includes(section)) {
-                    assignedSections[subject.code] = assignedSections[subject.code].concat(secsMerged)
-                    secName = secsMerged.join(' & ')
-                    secs = secsMerged
-                } else {
-                    secName = section
-                    secs = [section]
-                }
+                let [secName, secs] = ifMerged(section, props_batch.merge, assignedSections[subject.code])
                 let assigned_days = []
                 for (let portion of data.ects_div[subject.ects]) {
                     let info = {subject, ects: portion, color: color_subj}
                     let ects_space = data.ects_spaces[portion]
-                    // with empty space exactly enough for this
-                    let more_spaces = [], exact_spaces = []
-                    for (let space of Object.keys(spaces)) {
-                        let empty = spaces[space]['empty']
-                        let [_, day, half_day] = space.split(',')
-                        if (empty < ects_space || by_section[batch][section][day]['sp_' + half_day] < ects_space
-                            || assigned_days.includes(day)) continue  // not desired
-                        if (empty == ects_space) {
-                            exact_spaces.push(space)
-                        } else {
-                            more_spaces.push(space)
-                        }
-                    }
-                    let available = (exact_spaces.length ? exact_spaces : more_spaces)
-                    let space = available[Math.floor(Math.random() * available.length)]
-                    let [room, day, half_day] = space.split(',')
+                    if (dry) {spaces_req += ects_space; continue} // only to know required
+                    let space = chooseSpace(spaces, ects_space, by_section[batch][section], assigned_days)
+                    if (!space) return // failed
+                    let [[room, day, half_day], props_space] = space
                     // insert into schedule
                     by_room[room][day][half_day].push({batch, section: secName, ...info})
                     for (let sec of secs) {
@@ -209,15 +163,54 @@ function makeSchedule(data) {
                     }
                     // mark occupied
                     assigned_days.push(day)
-                    spaces[space].empty -= ects_space
+                    props_space.empty -= ects_space
                 }
             }
         }
     }
+    if (dry) return spaces_req
     return {by_room, by_section}
 }
 
-// makeSchedule(require('fs').readFileSync('../public/subjects.txt').toString())
-// console.log(JSON.stringify(makeSchedule(require('fs').readFileSync('../public/subjects.txt').toString()).by_section, null, 3))
+async function makeSchedule(data) {
+    if (!data) return
+    data = getData(data)
+    let freedom = 1.05
+    let required = Math.round(schedule(data, true) * freedom)
+    if (required < data.ects_avail) {
+        let trials = 100
+        for (let trial = 0; trial < trials; trial++) {
+            let sched = schedule(data)
+            if (sched) {
+                console.log('Seccess, trial', trial, required, '<', data.ects_avail)
+                return sched
+            }
+        }
+        console.log('Failed while', required, '<', data.ects_avail)
+    } else {
+        console.log('Failed,', required, '>', data.ects_avail)
+    }
+}
+
+// let data = {
+//     rooms: ['311', '313', '310', '319', '320', '321', '338', '339'],
+//     semester: 1,
+//     days: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].slice(0, 5),
+//     periods: [5, 5],
+//     students: {
+//         1: {1: 20, 2: 10},
+//         2: {1: 12, 2: 23, 3: 78},
+//         3: {1: 12, 2: 23},
+//         4: {1: 23, 2: 23, 3: 34},
+//         5: {'thermal': 23, 'industrial': 23, 'motor': 23, 'manufacturing': 23, 'design': 23, 'railway': 0}
+//     },
+//     subjects: require('fs').readFileSync('../public/subjects.txt').toString()
+// }
+// makeSchedule(data)
+// // console.log(makeSchedule(data))
+
+// let cm = permutIndices(10)
+// for (let c of cm) console.log(c)
+
 export default makeSchedule
 
