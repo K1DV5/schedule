@@ -74,7 +74,7 @@ function getSpaceCombos(rooms, days) {
 }
 
 function emptySchedule(data, days, rooms) {
-    let by_room = {}, by_section = {}
+    let by_room = {}, by_section = {}, by_subject = {}
     for (let room of rooms) {
         by_room[room] = {}
         for (let day of days) {
@@ -86,20 +86,36 @@ function emptySchedule(data, days, rooms) {
         for (let section of data_bat.sections) {
             by_section[batch][section] = {}
             for (let day of days) {
-                by_section[batch][section][day] = {morning: [], afternoon: [], sp_morning: 5, sp_afternoon: 5}
+                by_section[batch][section][day] = {morning: [], afternoon: [], sp_morning: Array(5).fill(1), sp_afternoon: Array(5).fill(1)}
+            }
+        }
+        by_subject[batch] = {}
+        for (let subject of data_bat.subjects) {
+            by_subject[batch][subject.code] = {}
+            for (let day of days) {
+                by_subject[batch][subject.code][day] = {morning: [], afternoon: []}
             }
         }
     }
-    return {by_room, by_section}
+    return {by_room, by_section, by_subject}
 }
 
 function chooseSpace(spaces, ects_space, sectionData, assigned_days) {
     let more_spaces = [], exact_spaces = []
     for (let [space, props_space] of spaces) {
         let empty = props_space.empty
-        let [_, day, half_day] = space
-        if (empty < ects_space || sectionData[day]['sp_' + half_day] < ects_space
-            || assigned_days.includes(day)) continue  // not desired
+        let [day, half_day] = space.slice(1)
+        // find consecutive empty
+        let sectionSpace = [...sectionData[day]['sp_' + half_day]], last = 0
+        for (let [i, sp] of sectionSpace.slice(1).entries()) {
+            if (sectionSpace[last] && sp) {
+                sectionSpace[last] += sp
+                sectionSpace[i + 1] = 0
+            } else last = i + 1
+        }
+        // check both space and time
+        let sectionEmpty = sectionSpace.filter((sp, i) => sp >= ects_space && i >= 5-empty).length
+        if (empty < ects_space || !sectionEmpty || assigned_days.includes(day)) continue  // not desired
         if (empty == ects_space) {
             exact_spaces.push([space, props_space])
         } else {
@@ -133,7 +149,7 @@ function ifMerged(section, sections, assigned) {
 function schedule(data, dry) {
     let spaces_req = 0
     let spaces = getSpaceCombos(data.rooms, data.days)
-    let {by_room, by_section} = emptySchedule(data.subjects_data, data.days, data.rooms)
+    let {by_room, by_section, by_subject} = emptySchedule(data.subjects_data, data.days, data.rooms)
     for (let [batch, props_batch] of Object.entries(data.subjects_data)) {
         let n_subjects = props_batch.subjects.length
         if (!n_subjects) continue
@@ -159,8 +175,10 @@ function schedule(data, dry) {
                     for (let sec of secs) {
                         let loc_sec = by_section[batch][sec][day]
                         loc_sec[half_day].push({...info, room})
-                        loc_sec['sp_' + half_day] -= ects_space
+                        let sectionSpace = loc_sec['sp_' + half_day], iStart = 5 - props_space.empty, iEnd = iStart + ects_space
+                        for (let i = iStart; i < iEnd; i++) sectionSpace[i] = 0
                     }
+                    by_subject[batch][subject.code][day][half_day].push({...info, room, section: secName})
                     // mark occupied
                     assigned_days.push(day)
                     props_space.empty -= ects_space
@@ -169,27 +187,24 @@ function schedule(data, dry) {
         }
     }
     if (dry) return spaces_req
-    return {by_room, by_section}
+    return {by_room, by_section, by_section}
 }
 
 async function makeSchedule(data) {
     if (!data) return
     data = getData(data)
-    let freedom = 1.05
-    let required = Math.round(schedule(data, true) * freedom)
+    let freedomFactor = 1.05
+    let required = Math.round(schedule(data, true) * freedomFactor)
     if (required < data.ects_avail) {
-        let trials = 100
+        let trials = 1000
         for (let trial = 0; trial < trials; trial++) {
             let sched = schedule(data)
             if (sched) {
-                console.log('Seccess, trial', trial, required, '<', data.ects_avail)
-                return sched
+                return {success: true, schedule: sched, trial, required, available: data.ects_avail}
             }
         }
-        console.log('Failed while', required, '<', data.ects_avail)
-    } else {
-        console.log('Failed,', required, '>', data.ects_avail)
     }
+    return {success: false, required, available: data.ects_avail}
 }
 
 // let data = {

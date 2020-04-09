@@ -6,26 +6,22 @@
 
     let periods = ['08:00-08:40 am', '08:50-09:30 am', '09:40-10:20 am', '10:30-11:10 am', '11:20-12:00 am', '01:30-02:10 pm', '02:20-03:00 pm', '03:10-03:50 pm', '04:00-01:40 pm', '04:50-05:30 pm']
 
-    let schedule = false
-    let sectionSchShown = true
-    let buttonText = 'Rooms'
+    let schedule = {}
+    let shown = 'section'
+    /* let buttonText = 'Rooms' */
 
-    function toggleShown() {
-        if (sectionSchShown) {
-            sectionSchShown = false
-            buttonText = 'Sections'
-        } else {
-            sectionSchShown = true
-            buttonText = 'Rooms'
+    function changeShown(to) {
+        return function() {
+            shown = to
         }
     }
 
     let rawData = {
         streams: ['thermal', 'industrial', 'motor', 'manufacturing', 'design', 'railway'],
         rooms: '311 313 310 319 320 321 338 339',
-        days: '6',
+        days: '5',
         semester: '1',
-        students: [['20', '10'], ['12', '23', '78'], ['12', '23'], ['23', '23', 34], ['78', 34, 45, 23, 45]],
+        students: [[20, 10], [12, 23, 78], [12], [23, 23, 34], [78, 34, 45, 23, 45]],
         ects: ['5', '5']
     }
 
@@ -34,7 +30,7 @@
         let byStream = nums => Object.fromEntries(nums.map((num, i) => [rawData.streams[i], isNaN(num) ? 0 : Number(num)]))
         let weekDays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
         let data = {
-            rooms: rawData.rooms.split(/\s|,/).map(rm => rm.trim()).filter(rm => rm),
+            rooms: rawData.rooms.split(/(\s|,)+/).map(rm => rm.trim()).filter(rm => rm),
             semester: Number(rawData.semester),
             days: weekDays.slice(0, Number(rawData.days)),
             periods: rawData.ects.map(num => Number(num)),
@@ -47,13 +43,7 @@
             },
             subjects: await (await fetch('/subjects.txt')).text()
         }
-        /* console.log(data) */
-        for (let i = 0; i < 10; i++) {
-            try {
-                schedule = makeSchedule(data)
-                break
-            } catch {}
-        }
+        schedule = await makeSchedule(data)
     }
 
 </script>
@@ -61,17 +51,37 @@
 <main>
     <Input data={rawData} />
     <button on:click={generate}>Generate</button>
-    {#if schedule}
-        <button on:click={toggleShown}>{buttonText}</button>
-        {#if sectionSchShown}
-            <Sections data={schedule.by_section} periods={periods}/>
-        {:else}
-            <Rooms data={schedule.by_room} periods={periods}/>
+    {#if schedule.success}
+        <div>Found on trial {schedule.trial + 1}. Required: {schedule.required}, Available: {schedule.available}</div>
+        <div>
+            <button class="tab{shown == 'section' ? '' : 'NC'}" on:click={changeShown('section')}>Sections</button>
+            <button class="tab{shown == 'room' ? '' : 'NC'}" on:click={changeShown('room')}>Rooms</button>
+            <button class="tab{shown == 'subject' ? '' : 'NC'}" on:click={changeShown('subject')}>Subject/Teacher</button>
+        </div>
+        {#if shown == 'section'}
+            <Sections data={schedule.schedule.by_section} periods={periods}/>
+        {:else if shown == 'room'}
+            <Rooms data={schedule.schedule.by_room} periods={periods}/>
         {/if}
+    {:else if schedule.required < schedule.available}
+        <div>Please try again</div>
+    {:else if schedule.progress}
+        <div>Loading...</div>
+    {:else if schedule.required != undefined}
+        <div>Required is {schedule.required} &gt; {schedule.available} (available)</div>
     {/if}
 </main>
 
 <style>
+    .tabNC {
+        border: none;
+        border-bottom: 2px solid #888;
+    }
+
+    .tab {
+        border-bottom: none;
+    }
+
     :global(button) {
         background: transparent;
         border: 2px solid #888;
