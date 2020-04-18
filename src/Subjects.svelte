@@ -4,32 +4,31 @@
     export let table
     let days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
-    // label callback
-    let label = session => `${session.subject.code}\n${session.subject.title}\nRoom ${session.room}`
-
     function makeTable(data) {
-        let sectionSchedule = []
+        // label callback
+        let label = session => `${(isNaN(session.section) ? '' : 'Section ') + session.section}\n\nRoom ${session.room}`
+        let subjectSchedule = []
         for (let [batch, schBat] of Object.entries(data)) {
-            for (let [section, schSec] of Object.entries(schBat)) {
-                sectionSchedule.push({batch, section, schedule: table(schSec, label)})
+            for (let [subject, schSub] of Object.entries(schBat)) {
+                subjectSchedule.push({subject, schedule: table(schSub, label)})
             }
         }
-        return sectionSchedule
+        return subjectSchedule
     }
 
 </script>
 
-{#each makeTable(data) as schSec}
+{#each makeTable(data) as schSub}
     <div>
-        <h3>Year {schSec.batch} Section {schSec.section}</h3>
+        <h3>{schSub.subject}</h3>
         <table border="1">
             <tr>
                 <th>Time</th>
-                {#each days.slice(0, schSec.schedule[0].length) as day}
+                {#each days.slice(0, schSub.schedule[0].length) as day}
                     <th>{day}</th>
                 {/each}
             </tr>
-            {#each [...schSec.schedule.entries()] as [i, row]}
+            {#each [...schSub.schedule.entries()] as [i, row]}
                 <tr>
                 <th class="time">{periods[i]}</th>
                 {#each row as col}

@@ -1,32 +1,14 @@
 <script>
     export let data = {}
     export let periods = []
+    export let table
+    let days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
     function makeTable(data) {
         let schedule = []
+        let label = session => `Year ${session.batch}\n${isNaN(session.section) ? session.section : 'Section ' + session.section}\n${session.subject.code}\n${session.subject.title}`
         for (let [room, schRm] of Object.entries(data)) {
-            let entries = Object.entries(schRm)
-            let rows = []
-            for (let i = 0; i < 10; i++) rows.push(Array(entries.length))
-            for (let [col, [day, schDay]] of entries.entries()) {
-                let row = 0
-                let offset = 0
-                for (let [half, schHalf] of Object.entries(schDay)) {
-                    if (half[2] === '_') continue
-                    for (let session of schHalf) {
-                        let sec = typeof session.section == 'number' ? 'Section ' + session.section : session.section
-                        let content = `Year ${session.batch}\n${sec}\n${session.subject.code}\n${session.subject.title}`
-                        rows[row + offset][col] = {session: content, span: session.ects, color: session.color}
-                        offset += session.ects
-                    }
-                    for (let i = 0; i < 5 - offset; i++) {
-                        rows[row + offset + i][col] = {session: '', span: 1}  // horizontal filler
-                    }
-                    row += 5
-                    offset = 0
-                }
-            }
-            schedule.push({room, schedule: rows})
+            schedule.push({room, schedule: table(schRm, label)})
         }
         return schedule
     }
@@ -39,12 +21,9 @@
         <table border="1">
             <tr>
                 <th>Time</th>
-                <th>Monday</th>
-                <th>Tuesday</th>
-                <th>Wednesday</th>
-                <th>Thursday</th>
-                <th>Friday</th>
-                <th>Saturday</th>
+                {#each days.slice(0, schRm.schedule[0].length) as day}
+                    <th>{day}</th>
+                {/each}
             </tr>
             {#each [...schRm.schedule.entries()] as [i, row]}
                 <tr>
