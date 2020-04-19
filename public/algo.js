@@ -229,7 +229,7 @@ function makeSchedule(data) {
         for (let trial = 0; trial < trials; trial++) {
             let sched = schedule(data)
             if (sched) {
-                return {success: true, schedule: sched, trial, required, treq: schedule(data, true), available: data.ectsAvail}
+                return {success: true, ...sched, trial, required, treq: schedule(data, true), available: data.ectsAvail}
             }
         }
     }
