@@ -5,7 +5,7 @@
 
 <script context="module">
     let days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    let periods = ['08:00-08:40 am', '08:50-09:30 am', '09:40-10:20 am', '10:30-11:10 am', '11:20-12:00 am', '01:30-02:10 pm', '02:20-03:00 pm', '03:10-03:50 pm', '04:00-01:40 pm', '04:50-05:30 pm']
+    let periods = ['08:00-08:40 am', '08:50-09:30 am', '09:40-10:20 am', '10:30-11:10 am', '11:20-12:00 am', '12:00am-01:30pm', '01:30-02:10 pm', '02:20-03:00 pm', '03:10-03:50 pm', '04:00-01:40 pm', '04:50-05:30 pm']
 
     let label = {
         section: session => `${session.subject.code}\n${session.subject.title}\nRoom ${session.room}`,
@@ -16,7 +16,7 @@
     function table(data, label) {
         let entries = Object.entries(data)
         let rows = []
-        for (let i = 0; i < 10; i++) rows.push(Array(entries.length))
+        for (let i = 0; i < 11; i++) rows.push(Array(entries.length))
         for (let [col, [day, schDay]] of entries.entries()) {
             let row = 0, offset = 0
             for (let [half, schHalf] of Object.entries(schDay)) {
@@ -30,7 +30,8 @@
                         offset += session.ects
                     }
                 }
-                row = 5, offset = 0
+                rows[5][0] = {session: 'Lunch Break', span: 1, width: entries.length}
+                row = 6, offset = 0
             }
         }
         return rows
@@ -80,7 +81,7 @@
                     <th class="time">{periods[i]}</th>
                     {#each row as col}
                         {#if col}
-                            <td rowspan="{col.span}" style="{'background:#' + col.color}">{col.session}</td>
+                            <td rowspan={col.span} colspan={col.width} style="{'background:#' + col.color}">{col.session}</td>
                         {/if}
                     {/each}
                     </tr>
