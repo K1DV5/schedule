@@ -61,24 +61,12 @@ function ectsRequiredForDivisions(ectsDiv, periods) {
     return ectsSpaces
 }
 
-function getSpaceCombos(rooms, days) {
-    // room-time combinations
-    let spaces = []
-    for (let room of rooms) {
-        for (let day of days) {
-            spaces.push([[room, day, 'morning'], {assigned: [], empty: 5}])
-            spaces.push([[room, day, 'afternoon'], {assigned: [], empty: 5}])
-        }
-    }
-    return spaces
-}
-
 function emptySchedule(data, days, rooms) {
     let byRoom = {}, bySection = {}, bySubject = {}
     for (let room of rooms) {
         byRoom[room] = {}
         for (let day of days) {
-            byRoom[room][day] = {morning: [], afternoon: []}
+            byRoom[room][day] = {morning: Array(5).fill(null), afternoon: Array(5).fill(null)}
         }
     }
     for (let [batch, dataBat] of Object.entries(data)) {
@@ -86,7 +74,7 @@ function emptySchedule(data, days, rooms) {
         for (let section of dataBat.sections) {
             bySection[batch][section] = {}
             for (let day of days) {
-                bySection[batch][section][day] = {morning: [], afternoon: [], sp_morning: Array(5).fill(1), sp_afternoon: Array(5).fill(1)}
+                bySection[batch][section][day] = {morning: Array(5).fill(null), afternoon: Array(5).fill(null)}
             }
         }
         bySubject[batch] = {}
@@ -94,7 +82,7 @@ function emptySchedule(data, days, rooms) {
             let key = [subject.code, subject.title]
             bySubject[batch][key] = {}
             for (let day of days) {
-                bySubject[batch][key][day] = {morning: [], afternoon: [], sp_morning: Array(5).fill(1), sp_afternoon: Array(5).fill(1)}
+                bySubject[batch][key][day] = {morning: Array(5).fill(null), afternoon: Array(5).fill(null)}
             }
         }
     }
@@ -102,15 +90,15 @@ function emptySchedule(data, days, rooms) {
 }
 
 function mergeConsecutive(inWhat) {
-    // [0,0,0,1,1,0,1,1,1] => [[3, 2], [6, 3]]
-    let lastI = 0, result = inWhat.slice()
+    // [11,11,11,null,null,11,null,null,null] => [[3, 2], [6, 3]]
+    let lastI = 0, result = inWhat.map(sp => sp === null ? 1 : 0)
     for (let [i, sp] of result.slice(1).entries()) {
         if (result[lastI] && sp) {
             result[lastI] += sp
             result[i + 1] = 0
         } else lastI = i + 1
     }
-    return result.reduce((sps, sp, i) => [...sps, [i, sp]], [])
+    return result.reduce((sps, sp, i) => sp ? [...sps, [i, sp]] : sps, [])
 }
 
 function intersection(first, second, third) {
@@ -137,14 +125,15 @@ function intersection(first, second, third) {
 
 function chooseSpace(spaces, ectsSpace, sectionData, subjectData, assignedDays) {
     let moreSpaces = [], exactSpaces = []
-    for (let [space, propsSpace] of spaces) {
-        let empty = propsSpace.empty, iEmpty = 5 - empty
-        let [day, halfDay] = space.slice(1)
-        let [iStart, intersec] = intersection([[iEmpty, empty]],
-                                              mergeConsecutive(sectionData[day]['sp_' + halfDay]),
-                                              mergeConsecutive(subjectData[day]['sp_' + halfDay]))
+    // let available = []
+    for (let space of spaces) {
+        let [day, halfDay] = space.slice(1, 3)
+        let [iStart, intersec] = intersection(mergeConsecutive(space[3]),
+                                              mergeConsecutive(sectionData[day][halfDay]),
+                                              mergeConsecutive(subjectData[day][halfDay]))
         if (intersec < ectsSpace || assignedDays.includes(day)) continue  // not desired
-        (intersec == ectsSpace ? exactSpaces : moreSpaces).push([space, propsSpace, iStart])
+        // available.push([...space, iStart])
+        (intersec == ectsSpace ? exactSpaces : moreSpaces).push([...space, iStart])
     }
     let available = exactSpaces.length ? exactSpaces : moreSpaces
     if (!available.length) return
@@ -172,8 +161,13 @@ function ifMerged(section, sections, assigned) {
 
 function schedule(data, dry) {
     let spacesReq = 0
-    let spaces = getSpaceCombos(data.rooms, data.days)
+    // let spaces = getSpaceCombos(data.rooms, data.days)
     let {byRoom, bySection, bySubject} = emptySchedule(data.subjectsData, data.days, data.rooms)
+    let spaces = [] // for choices
+    for (let [room, schRoom] of Object.entries(byRoom))
+        for (let [day, schDay] of Object.entries(schRoom))
+            for (let [half, schHalf] of Object.entries(schDay))
+                spaces.push([room, day, half, schHalf])
     for (let [batch, propsBatch] of Object.entries(data.subjectsData)) {
         let nSubjects = propsBatch.subjects.length
         if (!nSubjects) continue
@@ -188,28 +182,25 @@ function schedule(data, dry) {
                 let [secName, secs] = ifMerged(section, propsBatch.merge, assignedSections[subject.code])
                 let assignedDays = []
                 for (let portion of data.ectsDiv[subject.ects]) {
-                    let info = {subject, ects: portion, color: colorSubj}
-                    let ectsSpace = data.ectsSpaces[portion]
-                    if (dry) {spacesReq += ectsSpace; continue} // only to know required
+                    if (dry) {spacesReq += data.ectsSpaces[portion]; continue} // only to know required
                     let secData = bySection[batch][section], subjData = bySubject[batch][[subject.code, subject.title]]
-                    let space = chooseSpace(spaces, ectsSpace, secData, subjData, assignedDays)
+                    let space = chooseSpace(spaces, portion, secData, subjData, assignedDays)
                     if (!space) return // failed
-                    let [[room, day, halfDay], propsSpace, iStart] = space, iEnd = iStart + ectsSpace
+                    let [room, day, halfDay, propsSpace, iStart] = space, iEnd = iStart + portion
+                    let info = {subject, start: iStart, ects: portion, color: colorSubj}
                     // to sections
                     for (let sec of secs) {
                         let locSec = bySection[batch][sec][day]
-                        locSec[halfDay].push({...info, room})
-                        let sectionSpace = locSec['sp_' + halfDay]
-                        for (let i = iStart; i < iEnd; i++) sectionSpace[i] = 0
+                        locSec[halfDay][iStart] = {...info, room}
+                        if (portion > 1) for (let i = iStart + 1; i < iEnd; i++) locSec[halfDay][i] = 1
                     }
                     assignedDays.push(day)
                     // to subject
-                    subjData[day][halfDay].push({room, section: secName, ects: portion})
-                    let subjectSpace = subjData[day]['sp_' + halfDay]
-                    for (let i = iStart; i < iEnd; i++) subjectSpace[i] = 0
+                    subjData[day][halfDay][iStart] = {start: iStart, room, section: secName, ects: portion}
+                    for (let i = iStart + 1; i < iEnd; i++) subjData[day][halfDay][i] = 1
                     // to rooms
-                    byRoom[room][day][halfDay].push({batch, section: secName, ...info})
-                    propsSpace.empty -= ectsSpace
+                    propsSpace[iStart] = {batch, section: secName, ...info}
+                    for (let i = iStart + 1; i < iEnd; i++) propsSpace[i] = 1
                 }
             }
         }
@@ -222,10 +213,10 @@ function makeSchedule(data) {
     if (!data) return
     data = getData(data)
     let days = data.days.length
-    let freedomFactor = (days/(days - 1)) * 1.1 // some safety factor
+    let freedomFactor = days/(days - 1) // some safety factor
     let required = Math.round(schedule(data, true) * freedomFactor)
-    if (required < data.ectsAvail) {
-        let trials = 1000
+    if (required <= data.ectsAvail) {
+        let trials = 500
         for (let trial = 0; trial < trials; trial++) {
             let sched = schedule(data)
             if (sched) {
@@ -237,7 +228,7 @@ function makeSchedule(data) {
 }
 
 // let data = {
-//     rooms: ['311', '313', '310', '319', '320', '321', '338', '339', '1'],
+//     rooms: ['311', '313', '310', '319', '320', '321', '338', '339', '1', '2'],
 //     semester: 1,
 //     // days: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
 //     days: ['mon', 'tue', 'wed', 'thu', 'fri'],
@@ -245,7 +236,7 @@ function makeSchedule(data) {
 //     students: {
 //         1: {1: 20, 2: 10},
 //         2: {1: 12, 2: 23, 3: 78},
-//         3: {1: 12, 2: 23},
+//         3: {1: 12},
 //         4: {1: 23, 2: 23, 3: 34},
 //         5: {'thermal': 23, 'industrial': 23, 'motor': 23, 'manufacturing': 23, 'design': 23, 'railway': 0}
 //     },

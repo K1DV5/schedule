@@ -20,13 +20,16 @@
         for (let [col, [day, schDay]] of entries.entries()) {
             let row = 0, offset = 0
             for (let [half, schHalf] of Object.entries(schDay)) {
-                if (half[2] === '_') continue
                 for (let session of schHalf) {
-                    let content = label(session)
-                    rows[row + offset][col] = {session: content, span: session.ects, color: session.color}
-                    offset += session.ects
+                    if (session === null) {
+                        rows[row + offset][col] = {session: '', span: 1}
+                        offset += 1
+                    } else if (session !== 1) {
+                        let content = label(session)
+                        rows[row + offset][col] = {session: content, span: session.ects, color: session.color}
+                        offset += session.ects
+                    }
                 }
-                for (let i = 0; i < 5 - offset; i++) rows[row + offset + i][col] = {session: '', span: 1}  // horizontal filler
                 row = 5, offset = 0
             }
         }

@@ -4,6 +4,7 @@
 
     let schWorker = new Worker('algo.js')
     schWorker.onmessage = event => {
+        /* console.log(event.data) */
         schedule = toTables(event.data)
     }
 
@@ -18,7 +19,7 @@
 
     let rawData = {
         streams: ['thermal', 'industrial', 'motor', 'manufacturing', 'design', 'railway'],
-        rooms: '311 313 310 319 320 321 338 339 1 2',
+        rooms: '311 313 310 319 320 321 338 339 1',
         days: '5',
         semester: '1',
         students: [[20, 10], [12, 23, 78], [12], [23, 23, 34], [78, 34, 45, 23, 45]],
