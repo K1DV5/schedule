@@ -102,7 +102,7 @@ function emptySchedule(data, days, rooms) {
 }
 
 function mergeConsecutive(inWhat) {
-    // merge consecutive truthy items like [1,1,0] -> [2,0,0]
+    // [0,0,0,1,1,0,1,1,1] => [[3, 2], [6, 3]]
     let lastI = 0, result = inWhat.slice()
     for (let [i, sp] of result.slice(1).entries()) {
         if (result[lastI] && sp) {
@@ -110,21 +110,25 @@ function mergeConsecutive(inWhat) {
             result[i + 1] = 0
         } else lastI = i + 1
     }
-    return result
+    return result.reduce((sps, sp, i) => [...sps, [i, sp]], [])
 }
 
-function intersection(first, second) {
-    // space intersection between the subject and section spaces
+function intersection(first, second, third) {
+    // space intersection between the room, subject and section spaces
     let iStart = 0, intersec = 0
     for (let [i1, sp1] of first) {
         for (let [i2, sp2] of second) {
-            let begin = i1 > i2 ? i1 : i2
-            let end1 = i1 + sp1, end2 = i2 + sp2
-            let end = end1 < end2 ? end1 : end2
-            let inters = end - begin
-            if (inters > intersec) {
-                intersec = inters
-                iStart = begin
+            for (let [i3, sp3] of third) {
+                let begin1 = i1 > i2 ? i1 : i2
+                let begin = begin1 > i3 ? begin1 : i3
+                let end1 = i1 + sp1, end2 = i2 + sp2, end3 = i3 + sp3
+                let endP = end1 < end2 ? end1 : end2
+                let end = endP < end3 ? endP : end3
+                let inters = end - begin
+                if (inters > intersec) {
+                    intersec = inters
+                    iStart = begin
+                }
             }
         }
     }
@@ -136,16 +140,11 @@ function chooseSpace(spaces, ectsSpace, sectionData, subjectData, assignedDays) 
     for (let [space, propsSpace] of spaces) {
         let empty = propsSpace.empty, iEmpty = 5 - empty
         let [day, halfDay] = space.slice(1)
-        // [0,0,0,1,1,0,1,1,1] => [[3, 2], [6, 3]]
-        let empties = data => mergeConsecutive(data[day]['sp_' + halfDay])
-            .reduce((sps, sp, i) => sp >= ectsSpace && i >= iEmpty ? [...sps, [i, sp]] : sps, [])
-        let [iStart, intersec] = intersection(empties(sectionData), empties(subjectData))
-        if (empty < ectsSpace || intersec < ectsSpace || assignedDays.includes(day)) continue  // not desired
-        if (empty == ectsSpace) {
-            exactSpaces.push([space, propsSpace, iStart])
-        } else {
-            moreSpaces.push([space, propsSpace, iStart])
-        }
+        let [iStart, intersec] = intersection([[iEmpty, empty]],
+                                              mergeConsecutive(sectionData[day]['sp_' + halfDay]),
+                                              mergeConsecutive(subjectData[day]['sp_' + halfDay]))
+        if (intersec < ectsSpace || assignedDays.includes(day)) continue  // not desired
+        (intersec == ectsSpace ? exactSpaces : moreSpaces).push([space, propsSpace, iStart])
     }
     let available = exactSpaces.length ? exactSpaces : moreSpaces
     if (!available.length) return
@@ -222,7 +221,8 @@ function schedule(data, dry) {
 function makeSchedule(data) {
     if (!data) return
     data = getData(data)
-    let freedomFactor = 1.9
+    let days = data.days.length
+    let freedomFactor = (days/(days - 1)) * 1.1 // some safety factor
     let required = Math.round(schedule(data, true) * freedomFactor)
     if (required < data.ectsAvail) {
         let trials = 1000
@@ -237,9 +237,10 @@ function makeSchedule(data) {
 }
 
 // let data = {
-//     rooms: ['311', '313', '310', '319', '320', '321', '338', '339'],
+//     rooms: ['311', '313', '310', '319', '320', '321', '338', '339', '1'],
 //     semester: 1,
-//     days: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+//     // days: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+//     days: ['mon', 'tue', 'wed', 'thu', 'fri'],
 //     periods: [5, 5],
 //     students: {
 //         1: {1: 20, 2: 10},
@@ -250,9 +251,10 @@ function makeSchedule(data) {
 //     },
 //     subjects: require('fs').readFileSync('../public/subjects.txt').toString()
 // }
-// makeSchedule(data)
-// // console.log(makeSchedule(data))
+// console.log(makeSchedule(data))
 
-// export default makeSchedule
-
-addEventListener('message', event => postMessage(makeSchedule(event.data)))
+onmessage = event => {
+    let data = getData(event.data)
+    postMessage({progress: true, required: schedule(data, true), available: data.ectsAvail})
+    postMessage(makeSchedule(event.data))
+}

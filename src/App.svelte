@@ -3,7 +3,9 @@
     import Table, {toTables} from './Table.svelte'
 
     let schWorker = new Worker('algo.js')
-    schWorker.addEventListener('message', event => schedule = toTables(event.data))
+    schWorker.onmessage = event => {
+        schedule = toTables(event.data)
+    }
 
     let schedule = {}
     let shown = 'section'
@@ -17,7 +19,7 @@
     let rawData = {
         streams: ['thermal', 'industrial', 'motor', 'manufacturing', 'design', 'railway'],
         rooms: '311 313 310 319 320 321 338 339 1 2',
-        days: '7',
+        days: '5',
         semester: '1',
         students: [[20, 10], [12, 23, 78], [12], [23, 23, 34], [78, 34, 45, 23, 45]],
         ects: ['5', '5']
@@ -41,7 +43,6 @@
             },
             subjects: await (await fetch('/subjects.txt')).text()
         }
-        schedule = {progress: true}
         schWorker.postMessage(data)
     }
 
@@ -50,7 +51,10 @@
 <main>
     <Input data={rawData} />
     <button on:click={generate}>Generate</button>
-    {#if schedule.success}
+    {#if schedule.progress}
+        <div>Required: {schedule.required} available: {schedule.available}</div>
+        <div>Loading...</div>
+    {:else if schedule.success}
         <div>Found on trial {schedule.trial + 1}. Required: {schedule.required}, Available: {schedule.available}</div>
         <div>
             <button class="tab{shown == 'section' ? '' : 'NC'}" on:click={changeShown('section')}>Sections</button>
@@ -62,8 +66,6 @@
         <Table data={schedule.bySubject} visible={shown == 'subject'}/>
     {:else if schedule.required < schedule.available}
         <div>Please try again, required: {schedule.required} &lt; {schedule.available} (available)</div>
-    {:else if schedule.progress}
-        <div>Loading...</div>
     {:else if schedule.required != undefined}
         <div>Required is {schedule.required} &gt; {schedule.available} (available)</div>
     {/if}

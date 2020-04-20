@@ -62,17 +62,17 @@
 </script>
 
 <div style="display:{visible ? 'block' : 'none'}">
-    {#each data as schedule}
+    {#each data as data}
         <div>
-            <h3>{schedule.title}</h3>
+            <h3>{data.title}</h3>
             <table border="1">
                 <tr>
                     <th>Time</th>
-                    {#each days.slice(0, schedule.schedule[0].length) as day}
+                    {#each days.slice(0, data.schedule[0].length) as day}
                         <th>{day}</th>
                     {/each}
                 </tr>
-                {#each [...schedule.schedule.entries()] as [i, row]}
+                {#each [...data.schedule.entries()] as [i, row]}
                     <tr>
                     <th class="time">{periods[i]}</th>
                     {#each row as col}
@@ -91,13 +91,13 @@
     .time {
         text-align: start
     }
+    table {
+        border-collapse: collapse
+    }
     td, th {
         font-size: 8pt;
         width: 3cm;
         height: 1cm
-    }
-    table {
-        border-collapse: collapse
     }
     td {
         white-space: pre-line;
