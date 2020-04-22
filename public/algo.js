@@ -43,9 +43,7 @@ function getSubjects(data, semester, students) {
         subjects[row.year].subjects.push(rowData)
     }
     for (let [batch, data] of Object.entries(subjects)) {  // remove empty batches
-        if (!data.subjects.length || !data.sections.length) {
-            delete subjects[batch]
-        }
+        if (!data.subjects.length || !data.sections.length) delete subjects[batch]
     }
     return subjects
 }
@@ -205,6 +203,7 @@ function schedule(data, dry) {
                     let info = {subject, start: iStart, ects: portion, color: colorSubj}
                     // to sections
                     for (let sec of secs) {
+                        if (subject.elective && subject.elective !== sec) continue // maybe merged but not for elective
                         let locSec = bySection[batch][sec][day]
                         locSec[halfDay][iStart] = {...info, room}
                         if (portion > 1) for (let i = iStart + 1; i < iEnd; i++) locSec[halfDay][i] = 1
