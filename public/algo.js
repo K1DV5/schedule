@@ -1,7 +1,5 @@
 function getData(data) {
     // data
-    let sections = data.students
-    let merge = {5: [['manufacturing', 'industrial'], ['motor', 'design']]}
     let inputLines = String(data.subjects).trim().replace(/[\r\ufffd]/g, '').split('\n')
     if (!inputLines) return
     let dataSubjects = []
@@ -10,33 +8,46 @@ function getData(data) {
         dataSubjects.push(Object.fromEntries(line.split('\t')
             .map((val, index) => [keys[index], isNaN(val.trim()) ? val : (Number(val) || undefined)])))
     let ectsDiv = {2: [2], 3: [1, 2], 5: [2, 3], 6: [3, 3], 7: [2, 5]} // how to divide ectses
-    let [subjectsData, labels] = getSubjects(dataSubjects, data.semester, sections)
-    // debugger
-    for (let [batch, pairs] of Object.entries(merge)) subjectsData[batch].merge = pairs
+    let subjectsData = getSubjects(dataSubjects, data.semester, data.students)
     let ectsAvail = {}, periods = (data.periods[0] + data.periods[1])
     for (let [label, rooms] of Object.entries(data.rooms)) ectsAvail[label] = rooms.length * data.days.length * periods
     let ectsSpaces = ectsRequiredForDivisions(ectsDiv, data.periods)
-    return {subjectsData, rooms: data.rooms, days: data.days, ectsDiv, ectsSpaces, merge, ectsAvail}
+    return {subjectsData, rooms: data.rooms, days: data.days, ectsDiv, ectsSpaces, ectsAvail}
 }
 
-function getSubjects(data, semester, sections) {
-    let subjects = {}, labels = ['general']
-    for (let [batch, sec] of Object.entries(sections)) {
-        let secs = Object.entries(sec).filter(([_, studs]) => studs).map(([sec, _]) => sec)
-        subjects[batch] = {subjects: [], sections: secs}
+function getSubjects(data, semester, students) {
+    let subjects = {}
+    for (let [batch, secData] of Object.entries(students)) {
+        subjects[batch] = {subjects: [], sections: [], merge: []}
+        let merging = [], mergedStuds = 0, overMerge = false
+        for (let [sec, studs] of Object.entries(secData).sort((a, b) => a[1] < b[1] ? -1 : 1)) {
+            if (!studs) continue
+            subjects[batch].sections.push(sec)
+            if (overMerge) continue
+            if (mergedStuds + studs > 40) {
+                if (merging.length > 1) subjects[batch].merge.push(merging)
+                if (studs < 40) {
+                    merging = [sec]
+                    mergedStuds = studs
+                } else overMerge = true // no mergeable sections anymore
+            } else {
+                merging.push(sec)
+                mergedStuds += studs
+            }
+        }
+        if (!overMerge && merging.length > 1) subjects[batch].merge.push(merging)
     }
     for (let row of data) {
         if (row.semester !== semester) continue
         let rowData = {elective: row.elective, code: row.code, title: row.title, ects: row.ects, label: row.label || 'general'}
         subjects[row.year].subjects.push(rowData)
-        if (!labels.includes(row.label)) labels.push(row.label)
     }
     for (let [batch, data] of Object.entries(subjects)) {  // remove empty batches
         if (!data.subjects.length || !data.sections.length) {
             delete subjects[batch]
         }
     }
-    return [subjects, labels]
+    return subjects
 }
 
 // get ectses required when combined in half days =======================

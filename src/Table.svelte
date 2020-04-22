@@ -93,8 +93,6 @@
     }
     table {
         border-collapse: collapse;
-        margin-left: auto;
-        margin-right: auto;
     }
     td, th {
         font-size: 8pt;
@@ -110,6 +108,11 @@
         h3 {
             break-before: page;
             text-align: center
+        }
+
+        table {
+            margin-left: auto;
+            margin-right: auto;
         }
     }
 </style>

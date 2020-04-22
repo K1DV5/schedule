@@ -1,6 +1,6 @@
 <script context="module">
+    let streams = ['thermal', 'industrial', 'motor', 'manufacturing', 'design', 'railway']
     let rawData = {
-        streams: ['thermal', 'industrial', 'motor', 'manufacturing', 'design', 'railway'],
         rooms: [
             ['general', '311 313 310 319 338 339 nb011 nb012 nb013'],
             ['drawing', '320 321'],
@@ -9,13 +9,13 @@
         ],
         days: '5',
         semester: '1',
-        students: [[20, 10], [12, 23, 78], [12], [23, 23, 34], [78, 34, 45, 23, 45]],
+        students: [[20, 10], [32, 23, 78], [12], [23, 23, 34], [78, 14, 15, 13, 15]],
         ects: ['5', '5']
     }
 
     export function getInput() {
         let bySec = nums => Object.fromEntries(nums.map((num, i) => [i + 1, isNaN(num) ? 0 : Number(num)]))
-        let byStream = nums => Object.fromEntries(nums.map((num, i) => [rawData.streams[i], isNaN(num) ? 0 : Number(num)]))
+        let byStream = nums => Object.fromEntries(nums.map((num, i) => [streams[i], isNaN(num) ? 0 : Number(num)]))
         let weekDays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
         let data = {
             rooms: Object.fromEntries(rawData.rooms.map(([label, rooms]) => [label, rooms.split(/(\s|,)+/).map(rm => rm.trim()).filter(rm => rm)])),
@@ -151,7 +151,7 @@
                     <td><button on:click={addSection(4)}>+</button></td>
                     <td><button on:click={remSection(4)}>x</button></td>
                 {:else}
-                    {#each [...data.streams.entries()] as [i, stream]}
+                    {#each [...streams.entries()] as [i, stream]}
                         <td>{stream}:</td>
                         <td contenteditable class="input" bind:innerHTML={data.students[3][i]}>{data.students[3][i] || ''}</td>
                     {/each}
@@ -159,7 +159,7 @@
             </tr>
             <tr>
                 <th>Y5</th>
-                {#each [...data.streams.entries()] as [i, stream]}
+                {#each [...streams.entries()] as [i, stream]}
                     <td>{stream}:</td>
                     <td contenteditable class="input" bind:innerHTML={data.students[4][i]}>{data.students[4][i] || ''}</td>
                 {/each}
