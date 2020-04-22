@@ -42,23 +42,19 @@
         if (data.success) {
             // section
             sched.bySection = []
-            for (let [batch, schBat] of Object.entries(data.bySection)) {
-                for (let [section, schSec] of Object.entries(schBat)) {
+            for (let [batch, schBat] of Object.entries(data.bySection))
+                for (let [section, schSec] of Object.entries(schBat))
                     sched.bySection.push({title: 'Year ' + batch + ' Section ' + section, schedule: table(schSec, label.section)})
-                }
-            }
             // subject
             sched.bySubject = []
-            for (let [batch, schBat] of Object.entries(data.bySubject)) {
-                for (let [subject, schSub] of Object.entries(schBat)) {
+            for (let [batch, schBat] of Object.entries(data.bySubject))
+                for (let [subject, schSub] of Object.entries(schBat))
                     sched.bySubject.push({title: subject, schedule: table(schSub, label.subject)})
-                }
-            }
             // room
             sched.byRoom = []
-            for (let [room, schRm] of Object.entries(data.byRoom)) {
-                sched.byRoom.push({title: room, schedule: table(schRm, label.room)})
-            }
+            for (let [_, schLabel] of Object.entries(data.byRoom))
+                for (let [room, schRm] of Object.entries(schLabel))
+                    sched.byRoom.push({title: room, schedule: table(schRm, label.room)})
         }
         return sched
     }
@@ -96,7 +92,9 @@
         text-align: start
     }
     table {
-        border-collapse: collapse
+        border-collapse: collapse;
+        margin-left: auto;
+        margin-right: auto;
     }
     td, th {
         font-size: 8pt;
@@ -106,5 +104,12 @@
     td {
         white-space: pre-line;
         text-align: center
+    }
+
+    @media print {
+        h3 {
+            break-before: page;
+            text-align: center
+        }
     }
 </style>

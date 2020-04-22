@@ -1,45 +1,42 @@
 function getData(data) {
     // data
-    let semester = data.semester
-    let periods = data.periods
-    let days = data.days
-    let rooms = data.rooms
     let sections = data.students
     let merge = {5: [['manufacturing', 'industrial'], ['motor', 'design']]}
     let inputLines = String(data.subjects).trim().replace(/[\r\ufffd]/g, '').split('\n')
     if (!inputLines) return
     let dataSubjects = []
-    let keys = inputLines[0].split('\t')
-    for (let line of inputLines.slice(1)) {
-        dataSubjects.push(Object.fromEntries(line
-            .split('\t')
+    let keys = inputLines[0].split('\t').map(head => head.trim().toLowerCase())
+    for (let line of inputLines.slice(1))
+        dataSubjects.push(Object.fromEntries(line.split('\t')
             .map((val, index) => [keys[index], isNaN(val.trim()) ? val : (Number(val) || undefined)])))
-    }
     let ectsDiv = {2: [2], 3: [1, 2], 5: [2, 3], 6: [3, 3], 7: [2, 5]} // how to divide ectses
-    let subjectsData = getSubjects(dataSubjects, semester, sections)
+    let [subjectsData, labels] = getSubjects(dataSubjects, data.semester, sections)
+    // debugger
     for (let [batch, pairs] of Object.entries(merge)) subjectsData[batch].merge = pairs
-    let ectsAvail = (periods[0] + periods[1]) * rooms.length * days.length
-    let ectsSpaces = ectsRequiredForDivisions(ectsDiv, periods)
-    return {subjectsData, rooms, days, ectsDiv, ectsSpaces, merge, ectsAvail}
+    let ectsAvail = {}, periods = (data.periods[0] + data.periods[1])
+    for (let [label, rooms] of Object.entries(data.rooms)) ectsAvail[label] = rooms.length * data.days.length * periods
+    let ectsSpaces = ectsRequiredForDivisions(ectsDiv, data.periods)
+    return {subjectsData, rooms: data.rooms, days: data.days, ectsDiv, ectsSpaces, merge, ectsAvail}
 }
 
 function getSubjects(data, semester, sections) {
-    let subjects = {}
+    let subjects = {}, labels = ['general']
     for (let [batch, sec] of Object.entries(sections)) {
         let secs = Object.entries(sec).filter(([_, studs]) => studs).map(([sec, _]) => sec)
         subjects[batch] = {subjects: [], sections: secs}
     }
     for (let row of data) {
         if (row.semester !== semester) continue
-        let rowData = {elective: row.elective, code: row.code, title: row.title, ects: row.ects}
+        let rowData = {elective: row.elective, code: row.code, title: row.title, ects: row.ects, label: row.label || 'general'}
         subjects[row.year].subjects.push(rowData)
+        if (!labels.includes(row.label)) labels.push(row.label)
     }
     for (let [batch, data] of Object.entries(subjects)) {  // remove empty batches
         if (!data.subjects.length || !data.sections.length) {
             delete subjects[batch]
         }
     }
-    return subjects
+    return [subjects, labels]
 }
 
 // get ectses required when combined in half days =======================
@@ -63,10 +60,13 @@ function ectsRequiredForDivisions(ectsDiv, periods) {
 
 function emptySchedule(data, days, rooms) {
     let byRoom = {}, bySection = {}, bySubject = {}
-    for (let room of rooms) {
-        byRoom[room] = {}
-        for (let day of days) {
-            byRoom[room][day] = {morning: Array(5).fill(null), afternoon: Array(5).fill(null)}
+    for (let [label, list] of Object.entries(rooms)) {
+        byRoom[label] = {}
+        for (let room of list) {
+            byRoom[label][room] = {}
+            for (let day of days) {
+                byRoom[label][room][day] = {morning: Array(5).fill(null), afternoon: Array(5).fill(null)}
+            }
         }
     }
     for (let [batch, dataBat] of Object.entries(data)) {
@@ -90,6 +90,7 @@ function emptySchedule(data, days, rooms) {
 }
 
 function mergeConsecutive(inWhat) {
+    // get nulls with their start indices
     // [11,11,11,null,null,11,null,null,null] => [[3, 2], [6, 3]]
     let lastI = 0, result = inWhat.map(sp => sp === null ? 1 : 0)
     for (let [i, sp] of result.slice(1).entries()) {
@@ -107,12 +108,8 @@ function intersection(first, second, third) {
     for (let [i1, sp1] of first) {
         for (let [i2, sp2] of second) {
             for (let [i3, sp3] of third) {
-                let begin1 = i1 > i2 ? i1 : i2
-                let begin = begin1 > i3 ? begin1 : i3
-                let end1 = i1 + sp1, end2 = i2 + sp2, end3 = i3 + sp3
-                let endP = end1 < end2 ? end1 : end2
-                let end = endP < end3 ? endP : end3
-                let inters = end - begin
+                let begin = Math.max(i1, i2, i3)
+                let inters = Math.min(i1 + sp1, i2 + sp2, i3 + sp3) - begin
                 if (inters > intersec) {
                     intersec = inters
                     iStart = begin
@@ -122,7 +119,6 @@ function intersection(first, second, third) {
     }
     return [iStart, intersec]
 }
-
 function chooseSpace(spaces, ectsSpace, sectionData, subjectData, assignedDays) {
     let moreSpaces = [], exactSpaces = []
     // let available = []
@@ -159,21 +155,29 @@ function ifMerged(section, sections, assigned) {
     return [secName, secs]
 }
 
+function getSpaces(roomSch) {
+    let spaces = {} // for choices
+    for (let [label, schLabel] of Object.entries(roomSch)) {
+        spaces[label] = []
+        for (let [room, schRoom] of Object.entries(schLabel))
+            for (let [day, schDay] of Object.entries(schRoom))
+                for (let [half, schHalf] of Object.entries(schDay))
+                    spaces[label].push([room, day, half, schHalf])
+    }
+    return spaces
+}
+
 function schedule(data, dry) {
-    let spacesReq = 0
-    // let spaces = getSpaceCombos(data.rooms, data.days)
+    let spacesReq = {}
     let {byRoom, bySection, bySubject} = emptySchedule(data.subjectsData, data.days, data.rooms)
-    let spaces = [] // for choices
-    for (let [room, schRoom] of Object.entries(byRoom))
-        for (let [day, schDay] of Object.entries(schRoom))
-            for (let [half, schHalf] of Object.entries(schDay))
-                spaces.push([room, day, half, schHalf])
+    let spaces = getSpaces(byRoom)
     for (let [batch, propsBatch] of Object.entries(data.subjectsData)) {
         let nSubjects = propsBatch.subjects.length
         if (!nSubjects) continue
         let colorIncrement = Math.round((256 ** 3 - 8000000) / nSubjects)
         let color = 5000000
         for (let subject of propsBatch.subjects) {
+            if (subject.label == 'none') continue // is not taught in class room
             let colorSubj = Math.round(color).toString(16)
             color += colorIncrement
             let assignedSections = Object.fromEntries(propsBatch.subjects.map(sub => [sub.code, []])) // for merged
@@ -182,9 +186,9 @@ function schedule(data, dry) {
                 let [secName, secs] = ifMerged(section, propsBatch.merge, assignedSections[subject.code])
                 let assignedDays = []
                 for (let portion of data.ectsDiv[subject.ects]) {
-                    if (dry) {spacesReq += data.ectsSpaces[portion]; continue} // only to know required
+                    if (dry) {spacesReq[subject.label] = (spacesReq[subject.label] || 0) + data.ectsSpaces[portion]; continue} // only to know required
                     let secData = bySection[batch][section], subjData = bySubject[batch][[subject.code, subject.title]]
-                    let space = chooseSpace(spaces, portion, secData, subjData, assignedDays)
+                    let space = chooseSpace(spaces[subject.label], portion, secData, subjData, assignedDays)
                     if (!space) return // failed
                     let [room, day, halfDay, propsSpace, iStart] = space, iEnd = iStart + portion
                     let info = {subject, start: iStart, ects: portion, color: colorSubj}
@@ -194,13 +198,14 @@ function schedule(data, dry) {
                         locSec[halfDay][iStart] = {...info, room}
                         if (portion > 1) for (let i = iStart + 1; i < iEnd; i++) locSec[halfDay][i] = 1
                     }
-                    assignedDays.push(day)
-                    // to subject
+                    // to subject and room
                     subjData[day][halfDay][iStart] = {start: iStart, room, section: secName, ects: portion}
-                    for (let i = iStart + 1; i < iEnd; i++) subjData[day][halfDay][i] = 1
-                    // to rooms
                     propsSpace[iStart] = {batch, section: secName, ...info}
-                    for (let i = iStart + 1; i < iEnd; i++) propsSpace[i] = 1
+                    for (let i = iStart + 1; i < iEnd; i++) {
+                        subjData[day][halfDay][i] = 1
+                        propsSpace[i] = 1
+                    }
+                    assignedDays.push(day)
                 }
             }
         }
@@ -214,17 +219,25 @@ function makeSchedule(data) {
     data = getData(data)
     let days = data.days.length
     let freedomFactor = days/(days - 1) // some safety factor
-    let required = Math.round(schedule(data, true) * freedomFactor)
-    if (required <= data.ectsAvail) {
-        let trials = 500
-        for (let trial = 0; trial < trials; trial++) {
-            let sched = schedule(data)
-            if (sched) {
-                return {success: true, ...sched, trial, required, treq: schedule(data, true), available: data.ectsAvail}
-            }
+    let required = schedule(data, true)
+    let spaceMessage = [[], []]
+    for (let [label, req] of Object.entries(required)) {
+        if (!data.ectsAvail.hasOwnProperty(label)) {
+            return {success: false, message: `No room available for: ${label}`}
         }
+        let withFactor = Math.round(req * freedomFactor)
+        if (withFactor > data.ectsAvail[label])
+            return {success: false, message: `Not enough space for label: ${label}, ${withFactor} > ${data.ectsAvail[label]}`}
+        spaceMessage[0].push(`${label}: ${withFactor}`)
+        spaceMessage[1].push(`${label}: ${data.ectsAvail[label]}`)
     }
-    return {success: false, required, available: data.ectsAvail}
+    spaceMessage = `Required: (${spaceMessage[0].join(', ')}), Available: (${spaceMessage[1].join(', ')})`
+    let trials = 500
+    for (let trial = 0; trial < trials; trial++) {
+        let sched = schedule(data)
+        if (sched) return {success: true, ...sched, message: `Trial: ${trial} ${spaceMessage}`}
+    }
+    return {success: false, message: `Try again. ${spaceMessage}`}
 }
 
 // let data = {
@@ -245,7 +258,5 @@ function makeSchedule(data) {
 // console.log(makeSchedule(data))
 
 onmessage = event => {
-    let data = getData(event.data)
-    postMessage({progress: true, required: schedule(data, true), available: data.ectsAvail})
     postMessage(makeSchedule(event.data))
 }
