@@ -3,18 +3,7 @@
     import Table, {toTables} from './Table.svelte'
 
     let schWorker = new Worker('algo.js')
-    let subjectsList // the curriculum
-    let labels
-
-    fetch('/subjects.txt').then(file => file.text()).then(content => {
-        subjectsList = content
-        schWorker.onmessage = eve => {
-            labels = eve.data
-            for (let i = 0; i < labels.length; i++) labels[i] = labels[i].map(label => label || 'general')
-            schWorker.onmessage = event => schedule = toTables(event.data)
-        }
-        schWorker.postMessage({...getInput(), subjects: content, labels: true})
-    })
+    schWorker.onmessage = event => schedule = toTables(event.data)
 
     let schedule = {}
     let shown = 'section'
@@ -26,9 +15,8 @@
     }
 
     function generate() {
-        let data = {...getInput(), subjects: subjectsList}
         schedule = {progress: true}
-        schWorker.postMessage(data)
+        schWorker.postMessage(getInput())
     }
 
     function followHash(event) {
@@ -42,7 +30,7 @@
 
 <main>
     <div class="noprint">
-        <Input labels={labels}/>
+        <Input />
         <button on:click={generate}>{schedule.progress ? 'Generating...' : 'Generate'}</button>
     </div>
     {#if schedule.success}

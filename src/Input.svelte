@@ -1,4 +1,6 @@
 <script context="module">
+    import prepData, {init} from './data.js'
+
     let streams = ['thermal', 'industrial', 'motor', 'manufacturing', 'design', 'railway']
     let rawData = {
         rooms: {
@@ -14,7 +16,7 @@
         mergeBelow: 40
     }
 
-    export function getInput() {
+    export function getInput(raw) {
         let bySec = nums => Object.fromEntries(nums.map((num, i) => [i + 1, isNaN(num) ? 0 : Number(num)]))
         let byStream = nums => Object.fromEntries(nums.map((num, i) => [streams[i], isNaN(num) ? 0 : Number(num)]))
         let weekDays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
@@ -32,13 +34,15 @@
             },
             mergeBelow: rawData.mergeBelow
         }
-        return data
+        if (raw) return data
+        return prepData(data)
     }
 </script>
 
 <script>
     let data = rawData
-    export let labels = [[], []]
+    let labels = [[], []]
+    init(data.semester).then(list => labels = list)
 
     function addSection(index) {
         return function(eve) {
