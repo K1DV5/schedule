@@ -2,14 +2,19 @@
     import Input, {getInput} from './Input.svelte'
     import Table, {toTables} from './Table.svelte'
 
-    let subjectsList // the curriculum
-    fetch('/subjects.txt').then(file => file.text()).then(content => subjectsList = content)
-
     let schWorker = new Worker('algo.js')
-    schWorker.onmessage = event => {
-        /* console.log(event.data) */
-        schedule = toTables(event.data)
-    }
+    let subjectsList // the curriculum
+    let labels
+
+    fetch('/subjects.txt').then(file => file.text()).then(content => {
+        subjectsList = content
+        schWorker.onmessage = eve => {
+            labels = eve.data
+            for (let i = 0; i < labels.length; i++) labels[i] = labels[i].map(label => label || 'general')
+            schWorker.onmessage = event => schedule = toTables(event.data)
+        }
+        schWorker.postMessage({...getInput(), subjects: content, labels: true})
+    })
 
     let schedule = {}
     let shown = 'section'
@@ -37,14 +42,12 @@
 
 <main>
     <div class="noprint">
-        <Input/>
-        <button on:click={generate}>Generate</button>
+        <Input labels={labels}/>
+        <button on:click={generate}>{schedule.progress ? 'Generating...' : 'Generate'}</button>
     </div>
-    {#if schedule.progress}
-        <div class="noprint">Loading...</div>
-    {:else if schedule.success}
-        <div class="noprint">{schedule.message}</div>
-        <div class="noprint">
+    {#if schedule.success}
+        <div class="noprint message">{schedule.message}</div>
+        <div class="noprint tabs">
             <button class="tab{shown == 'section' ? '' : 'NC'}" on:click={changeShown('section')}>Sections</button>
             <button class="tab{shown == 'room' ? '' : 'NC'}" on:click={changeShown('room')}>Rooms</button>
             <button class="tab{shown == 'subject' ? '' : 'NC'}" on:click={changeShown('subject')}>Subject/Teacher</button>
@@ -53,21 +56,28 @@
         <Table data={schedule.byRoom} visible={shown == 'room'}/>
         <Table data={schedule.bySubject} visible={shown == 'subject'}/>
     {:else if schedule.message}
-        <div>{schedule.message}</div>
+        <div class="message">{schedule.message}</div>
     {/if}
 </main>
 
 <svelte:window on:hashchange={followHash} />
 
 <style>
+    .tabs {
+        background-color: lightgray;
+    }
+
     .tabNC {
         border: none;
-        border-bottom: 2px solid #888;
     }
 
     .tab {
-        border-bottom: none;
-        margin-left: -5px
+        border: none;
+        border-bottom: solid darkgrey;
+    }
+
+    .message {
+        white-space: pre-wrap;
     }
 
     :global(button) {

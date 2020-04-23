@@ -6,17 +6,18 @@ function getData(data) {
     let keys = inputLines[0].split('\t').map(head => head.trim().toLowerCase())
     for (let line of inputLines.slice(1))
         dataSubjects.push(Object.fromEntries(line.split('\t')
-            .map((val, index) => [keys[index], isNaN(val.trim()) ? val : (Number(val) || undefined)])))
+            .map((val, index) => [keys[index], isNaN(val.trim()) ? val.trim() : (Number(val) || undefined)])))
+    let subjectsData = getBatchesData(dataSubjects, data.semester, data.students, data.mergeBelow)
+    if (data.labels) return subjectsData.labels
     let ectsDiv = {2: [2], 3: [1, 2], 5: [2, 3], 6: [3, 3], 7: [2, 5]} // how to divide ectses
-    let subjectsData = getSubjects(dataSubjects, data.semester, data.students, data.mergeBelow)
     let ectsAvail = {}, periods = (data.periods[0] + data.periods[1])
     for (let [label, rooms] of Object.entries(data.rooms)) ectsAvail[label] = rooms.length * data.days.length * periods
     let ectsSpaces = ectsRequiredForDivisions(ectsDiv, data.periods)
-    return {subjectsData, rooms: data.rooms, days: data.days, ectsDiv, ectsSpaces, ectsAvail}
+    return {subjectsData: subjectsData.subjects, rooms: data.rooms, days: data.days, ectsDiv, ectsSpaces, ectsAvail}
 }
 
-function getSubjects(data, semester, students, mergeBelow) {
-    let subjects = {}
+function getBatchesData(data, semester, students, mergeBelow) {
+    let subjects = {}, labels = [[], []]
     for (let [batch, secData] of Object.entries(students)) {
         subjects[batch] = {subjects: [], sections: [], merge: []}
         let merging = [], mergedStuds = 0, overMerge = false
@@ -38,14 +39,16 @@ function getSubjects(data, semester, students, mergeBelow) {
         if (!overMerge && merging.length > 1) subjects[batch].merge.push(merging)
     }
     for (let row of data) {
-        if (row.semester !== semester || row.label == 'none') continue
+        if (row.label == 'none') continue
+        if (!labels[row.semester - 1].includes(row.label)) labels[row.semester - 1].push(row.label)
+        if (row.semester !== semester) continue
         let rowData = {elective: row.elective, code: row.code, title: row.title, ects: row.ects, label: row.label || 'general'}
         subjects[row.year].subjects.push(rowData)
     }
     for (let [batch, data] of Object.entries(subjects)) {  // remove empty batches
         if (!data.subjects.length || !data.sections.length) delete subjects[batch]
     }
-    return subjects
+    return {subjects, labels}
 }
 
 // get ectses required when combined in half days =======================
@@ -237,13 +240,13 @@ function makeSchedule(data) {
         spaceMessage[0].push(`${label}: ${withFactor}`)
         spaceMessage[1].push(`${label}: ${data.ectsAvail[label]}`)
     }
-    spaceMessage = `Required: (${spaceMessage[0].join(', ')}), Available: (${spaceMessage[1].join(', ')})`
+    spaceMessage = `(Required)\t${spaceMessage[0].join('\t')}\n(Available)\t${spaceMessage[1].join('\t')}`
     let trials = 500
     for (let trial = 0; trial < trials; trial++) {
         let sched = schedule(data)
-        if (sched) return {success: true, ...sched, message: `Trial: ${trial}, ${spaceMessage}`}
+        if (sched) return {success: true, ...sched, message: `Trial: ${trial}\n${spaceMessage}`}
     }
-    return {success: false, message: `Try again. ${spaceMessage}`}
+    return {success: false, message: `Try again.\n${spaceMessage}`}
 }
 
 // let data = {
@@ -264,5 +267,6 @@ function makeSchedule(data) {
 // console.log(makeSchedule(data))
 
 onmessage = event => {
-    postMessage(makeSchedule(event.data))
+    if (event.data.labels) postMessage(getData(event.data))
+    else postMessage(makeSchedule(event.data))
 }

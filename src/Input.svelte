@@ -1,12 +1,12 @@
 <script context="module">
     let streams = ['thermal', 'industrial', 'motor', 'manufacturing', 'design', 'railway']
     let rawData = {
-        rooms: [
-            ['general', '311 313 310 319 338 339 nb011'],
-            ['drawing', '320 321'],
-            ['workshop', 'Workshop'],
-            ['computer', 'Lab'],
-        ],
+        rooms: {
+            general: '311 313 310 319 338 339 nb011',
+            drawing: '320 321',
+            workshop: 'Workshop',
+            computer: 'Lab 6'
+        },
         days: '5',
         semester: '1',
         students: [[20, 10], [32, 23, 78], [12], [23, 23, 34], [78, 14, 15, 13, 15]],
@@ -19,7 +19,7 @@
         let byStream = nums => Object.fromEntries(nums.map((num, i) => [streams[i], isNaN(num) ? 0 : Number(num)]))
         let weekDays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
         let data = {
-            rooms: Object.fromEntries(rawData.rooms.map(([label, rooms]) => [label, rooms.split(/(\s|,)+/).map(rm => rm.trim()).filter(rm => rm)])),
+            rooms: Object.fromEntries(Object.entries(rawData.rooms).map(([label, rooms]) => [label, rooms.split(/(\s|,)+/).map(rm => rm.trim()).filter(rm => rm)])),
             semester: Number(rawData.semester),
             days: weekDays.slice(0, Number(rawData.days)),
             periods: rawData.ects.map(num => Number(num)),
@@ -38,19 +38,20 @@
 
 <script>
     let data = rawData
+    export let labels = [[], []]
 
-    function addSection(yr) {
+    function addSection(index) {
         return function(eve) {
-            data.students[yr-1].push('')
-            data.students[yr-1] = data.students[yr-1]
+            data.students[index].push('')
+            data.students[index] = data.students[index]
             eve.preventDefault()
         }
     }
 
-    function remSection(yr) {
+    function remSection(index) {
         return function(eve) {
-            if (data.students[yr - 1].length > 1) {
-                data.students[yr - 1] = [...data.students[yr - 1].slice(0, -1)]
+            if (data.students[index].length > 1) {
+                data.students[index] = [...data.students[index].slice(0, -1)]
             }
             eve.preventDefault()
         }
@@ -90,92 +91,47 @@
             </select>
         <div>
             <label for="mergeBelow">Merge classes if below:</label>
-            <input id="mergeBelow" type="number" bind:value={rawData.mergeBelow}>
+            <input id="mergeBelow" type="number" min="1" max="99" bind:value={rawData.mergeBelow}>
         </div>
     </fieldset>
     <fieldset>
         <legend>Rooms (space separated)</legend>
         <table>
-            {#each [...data.rooms.entries()] as [i, roomGroup]}
+            {#each labels[data.semester-1] as label}
                 <tr>
-                    {#if roomGroup.label == 'general'}
-                        <td>{roomGroup[0]}</td>
-                    {:else}
-                        <td class="input" contenteditable bind:innerHTML={roomGroup[0]}>{roomGroup[0]}</td>
-                    {/if}
+                    <td>{label}</td>
                     <td></td>
-                    <td class="input" contenteditable bind:innerHTML={roomGroup[1]}>{roomGroup[1]}</td>
-                    {#if roomGroup[0] !== 'general'}
-                        <td><button on:click={remRoomLabel(i)}>x</button></td>
-                    {/if}
+                    <td><input type="text" bind:value={data.rooms[label]}></td>
                 </tr>
             {/each}
-            <tr>
-                <td><button on:click={addRoomLabel}>+</button></td>
-            </tr>
         </table>
     </fieldset>
     <fieldset>
         <legend>Students</legend>
         <table>
-            <tr>
-                <th>Y1</th>
-                {#each [...data.students[0].entries()] as [i, num]}
-                    <td>S{i + 1}:</td>
-                    <td contenteditable class="input" bind:innerHTML={data.students[0][i]}>{num}</td>
-                {/each}
-                <td><button on:click={addSection(1)}>+</button></td>
-                <td><button on:click={remSection(1)}>x</button></td>
-            </tr>
-            <tr>
-                <th>Y2</th>
-                {#each [...data.students[1].entries()] as [i, num]}
-                    <td>S{i + 1}:</td>
-                    <td contenteditable class="input" bind:innerHTML={data.students[1][i]}>{num}</td>
-                {/each}
-                <td><button on:click={addSection(2)}>+</button></td>
-                <td><button on:click={remSection(2)}>x</button></td>
-            </tr>
-            <tr>
-                <th>Y3</th>
-                {#each [...data.students[2].entries()] as [i, num]}
-                    <td>S{i + 1}:</td>
-                    <td contenteditable class="input" bind:innerHTML={data.students[2][i]}>{num}</td>
-                {/each}
-                <td><button on:click={addSection(3)}>+</button></td>
-                <td><button on:click={remSection(3)}>x</button></td>
-            </tr>
-            <tr>
-                <th>Y4</th>
-                {#if data.semester == '1'}
-                    {#each [...data.students[3].entries()] as [i, num]}
-                        <td>{(data.semester == '1' ? 'S' : '') + (i + 1)}:</td>
-                        <td contenteditable class="input" bind:innerHTML={data.students[3][i]}>{num}</td>
-                    {/each}
-                    <td><button on:click={addSection(4)}>+</button></td>
-                    <td><button on:click={remSection(4)}>x</button></td>
-                {:else}
-                    {#each [...streams.entries()] as [i, stream]}
-                        <td>{stream}:</td>
-                        <td contenteditable class="input" bind:innerHTML={data.students[3][i]}>{data.students[3][i] || ''}</td>
-                    {/each}
-                {/if}
-            </tr>
-            <tr>
-                <th>Y5</th>
-                {#each [...streams.entries()] as [i, stream]}
-                    <td>{stream}:</td>
-                    <td contenteditable class="input" bind:innerHTML={data.students[4][i]}>{data.students[4][i] || ''}</td>
-                {/each}
-            </tr>
+            {#each Object.entries(data.students) as [iBatch, students]}
+                <tr>
+                    <th>Y{Number(iBatch) + 1}</th>
+                    {#if iBatch < 3 || iBatch == 3 && data.semester == 1}
+                        {#each [...students.entries()] as [i, _]}
+                            <td>S{i + 1}:</td>
+                            <td><input type="number" min="1" max="99" bind:value={students[i]}></td>
+                        {/each}
+                        <td><button on:click={addSection(iBatch)}>+</button></td>
+                        <td><button on:click={remSection(iBatch)}>x</button></td>
+                    {:else}
+                        {#each [...streams.entries()] as [i, stream]}
+                            <td>{stream}:</td>
+                            <td><input type="number" min="1" max="99" bind:value={students[i]}></td>
+                        {/each}
+                    {/if}
+                </tr>
+            {/each}
         </table>
     </fieldset>
 </form>
 
 <style>
-    input.sec {
-        width: 2em;
-    }
 
     th {
         padding-right: 1em
@@ -185,14 +141,13 @@
         text-align: right;
         min-width: 2em;
     }
-    
-    td.input {
-        text-align: right;
-        border-bottom: solid cyan 1px;
-    }
 
+    input[type=text] {
+        width: 50vw;
+    }
+    
     input[type=number] {
-        width: 5em
+        width: 3em
     }
 
     button {
