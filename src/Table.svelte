@@ -96,7 +96,7 @@
     }
     td, th {
         font-size: 8pt;
-        width: 3cm;
+        width: 3.5cm;
         height: 1cm
     }
     td {

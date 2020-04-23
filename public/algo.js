@@ -8,14 +8,14 @@ function getData(data) {
         dataSubjects.push(Object.fromEntries(line.split('\t')
             .map((val, index) => [keys[index], isNaN(val.trim()) ? val : (Number(val) || undefined)])))
     let ectsDiv = {2: [2], 3: [1, 2], 5: [2, 3], 6: [3, 3], 7: [2, 5]} // how to divide ectses
-    let subjectsData = getSubjects(dataSubjects, data.semester, data.students)
+    let subjectsData = getSubjects(dataSubjects, data.semester, data.students, data.mergeBelow)
     let ectsAvail = {}, periods = (data.periods[0] + data.periods[1])
     for (let [label, rooms] of Object.entries(data.rooms)) ectsAvail[label] = rooms.length * data.days.length * periods
     let ectsSpaces = ectsRequiredForDivisions(ectsDiv, data.periods)
     return {subjectsData, rooms: data.rooms, days: data.days, ectsDiv, ectsSpaces, ectsAvail}
 }
 
-function getSubjects(data, semester, students) {
+function getSubjects(data, semester, students, mergeBelow) {
     let subjects = {}
     for (let [batch, secData] of Object.entries(students)) {
         subjects[batch] = {subjects: [], sections: [], merge: []}
@@ -24,9 +24,9 @@ function getSubjects(data, semester, students) {
             if (!studs) continue
             subjects[batch].sections.push(sec)
             if (overMerge) continue
-            if (mergedStuds + studs > 40) {
+            if (mergedStuds + studs > mergeBelow) {
                 if (merging.length > 1) subjects[batch].merge.push(merging)
-                if (studs < 40) {
+                if (studs < mergeBelow) {
                     merging = [sec]
                     mergedStuds = studs
                 } else overMerge = true // no mergeable sections anymore
@@ -38,7 +38,7 @@ function getSubjects(data, semester, students) {
         if (!overMerge && merging.length > 1) subjects[batch].merge.push(merging)
     }
     for (let row of data) {
-        if (row.semester !== semester) continue
+        if (row.semester !== semester || row.label == 'none') continue
         let rowData = {elective: row.elective, code: row.code, title: row.title, ects: row.ects, label: row.label || 'general'}
         subjects[row.year].subjects.push(rowData)
     }
@@ -186,7 +186,6 @@ function schedule(data, dry) {
         let colorIncrement = Math.round((256 ** 3 - 8000000) / nSubjects)
         let color = 5000000
         for (let subject of propsBatch.subjects) {
-            if (subject.label == 'none') continue // is not taught in class room
             let colorSubj = Math.round(color).toString(16)
             color += colorIncrement
             let assignedSections = Object.fromEntries(propsBatch.subjects.map(sub => [sub.code, []])) // for merged
@@ -227,17 +226,14 @@ function schedule(data, dry) {
 function makeSchedule(data) {
     if (!data) return
     data = getData(data)
-    let days = data.days.length
-    let freedomFactor = days/(days - 1) // some safety factor
     let required = schedule(data, true)
-    let spaceMessage = [[], []]
+    let freedomFactor = 1.05, spaceMessage = [[], []]
     for (let [label, req] of Object.entries(required)) {
-        if (!data.ectsAvail.hasOwnProperty(label)) {
+        if (!data.ectsAvail.hasOwnProperty(label))
             return {success: false, message: `No room available for: ${label}`}
-        }
         let withFactor = Math.round(req * freedomFactor)
-        if (withFactor > data.ectsAvail[label])
-            return {success: false, message: `Not enough space for label: ${label}, ${withFactor} > ${data.ectsAvail[label]}`}
+        if (req > data.ectsAvail[label])
+            return {success: false, message: `Not enough space for ${label}, ${withFactor} > ${data.ectsAvail[label]}`}
         spaceMessage[0].push(`${label}: ${withFactor}`)
         spaceMessage[1].push(`${label}: ${data.ectsAvail[label]}`)
     }
@@ -245,7 +241,7 @@ function makeSchedule(data) {
     let trials = 500
     for (let trial = 0; trial < trials; trial++) {
         let sched = schedule(data)
-        if (sched) return {success: true, ...sched, message: `Trial: ${trial} ${spaceMessage}`}
+        if (sched) return {success: true, ...sched, message: `Trial: ${trial}, ${spaceMessage}`}
     }
     return {success: false, message: `Try again. ${spaceMessage}`}
 }

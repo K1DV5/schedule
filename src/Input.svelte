@@ -2,7 +2,7 @@
     let streams = ['thermal', 'industrial', 'motor', 'manufacturing', 'design', 'railway']
     let rawData = {
         rooms: [
-            ['general', '311 313 310 319 338 339 nb011 nb012 nb013'],
+            ['general', '311 313 310 319 338 339 nb011'],
             ['drawing', '320 321'],
             ['workshop', 'Workshop'],
             ['computer', 'Lab'],
@@ -10,7 +10,8 @@
         days: '5',
         semester: '1',
         students: [[20, 10], [32, 23, 78], [12], [23, 23, 34], [78, 14, 15, 13, 15]],
-        ects: ['5', '5']
+        ects: ['5', '5'],
+        mergeBelow: 40
     }
 
     export function getInput() {
@@ -29,6 +30,7 @@
                 4: rawData.semester == '1' ? bySec(rawData.students[3]) : byStream(rawData.students[3]),
                 5: byStream(rawData.students[4])
             },
+            mergeBelow: rawData.mergeBelow
         }
         return data
     }
@@ -80,13 +82,15 @@
                 <option>2</option>
             </select>
         </div>
-        <div>
             <label for="days">Days per week:</label>
             <select name="days" id="days" bind:value={data.days}>
                 <option>5</option>
                 <option>6</option>
                 <option>7</option>
             </select>
+        <div>
+            <label for="mergeBelow">Merge classes if below:</label>
+            <input id="mergeBelow" type="number" bind:value={rawData.mergeBelow}>
         </div>
     </fieldset>
     <fieldset>
@@ -169,9 +173,6 @@
 </form>
 
 <style>
-    * {
-        /* font-family: sans-serif; */
-    }
     input.sec {
         width: 2em;
     }
@@ -188,6 +189,10 @@
     td.input {
         text-align: right;
         border-bottom: solid cyan 1px;
+    }
+
+    input[type=number] {
+        width: 5em
     }
 
     button {
