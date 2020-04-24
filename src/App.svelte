@@ -2,11 +2,14 @@
     import Input, {getInput} from './Input.svelte'
     import Table, {toTables} from './Table.svelte'
 
-    let schWorker = new Worker('algo.js')
-    schWorker.onmessage = event => schedule = toTables(event.data)
-
-    let schedule = {}
+    let schedule = {}, progress = false
     let shown = 'section'
+
+    let schWorker = new Worker('algo.js')
+    schWorker.onmessage = event => {
+        progress = false
+        schedule = toTables(event.data)
+    }
 
     function changeShown(to) {
         return function() {
@@ -15,7 +18,7 @@
     }
 
     function generate() {
-        schedule = {progress: true}
+        progress = true
         schWorker.postMessage(getInput())
     }
 
@@ -31,7 +34,7 @@
 <main>
     <div class="noprint">
         <Input />
-        <button on:click={generate}>{schedule.progress ? 'Generating...' : 'Generate'}</button>
+        <button on:click={generate}>{progress ? 'Generating...' : 'Generate'}</button>
     </div>
     {#if schedule.success}
         <div class="noprint message">{schedule.message}</div>

@@ -13,16 +13,21 @@
         semester: '1',
         students: [[20, 10], [32, 23, 78], [12], [23, 23, 34], [78, 14, 15, 13, 15]],
         ects: ['5', '5'],
-        mergeBelow: 40
+        mergeBelow: 40,
+        ectsDiv: {2: '2', 3: '1 2', 5: '2 3', 6: '3 3', 7: '2 5'} // how to divide ectses
     }
 
-    export function getInput(raw) {
+    export function getInput() {
+        let semester = Number(rawData.semester)
         let bySec = nums => Object.fromEntries(nums.map((num, i) => [i + 1, isNaN(num) ? 0 : Number(num)]))
         let byStream = nums => Object.fromEntries(nums.map((num, i) => [streams[i], isNaN(num) ? 0 : Number(num)]))
         let weekDays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+        let ectsDiv = {}
+        for (let [ects, divs] of Object.entries(rawData.ectsDiv))
+            ectsDiv[ects] = divs.replace(/[^ \d]/g, '').split(' ').filter(div => div).map(div => Number(div))
         let data = {
             rooms: Object.fromEntries(Object.entries(rawData.rooms).map(([label, rooms]) => [label, rooms.split(/(\s|,)+/).map(rm => rm.trim()).filter(rm => rm)])),
-            semester: Number(rawData.semester),
+            semester,
             days: weekDays.slice(0, Number(rawData.days)),
             periods: rawData.ects.map(num => Number(num)),
             students: {
@@ -32,17 +37,17 @@
                 4: rawData.semester == '1' ? bySec(rawData.students[3]) : byStream(rawData.students[3]),
                 5: byStream(rawData.students[4])
             },
-            mergeBelow: rawData.mergeBelow
+            mergeBelow: rawData.mergeBelow,
+            ectsDiv
         }
-        if (raw) return data
         return prepData(data)
     }
 </script>
 
 <script>
     let data = rawData
-    let labels = [[], []]
-    init(data.semester).then(list => labels = list)
+    let labels = [[], []], ectses = [[], []]
+    init(data.semester).then(init => {labels = init.labels; ectses = init.ectses})
 
     function addSection(index) {
         return function(eve) {
@@ -94,8 +99,15 @@
                 <option>7</option>
             </select>
         <div>
-            <label for="mergeBelow">Merge classes if below:</label>
+            <label for="mergeBelow">Merge classes if sum &lt;</label>
             <input id="mergeBelow" type="number" min="1" max="99" bind:value={rawData.mergeBelow}>
+        </div>
+        <div class="ects">
+            <span>ECTS divisions (space separated)</span>
+            {#each ectses[data.semester - 1] as ects}
+                <label>{ects}:</label>
+                <input type="text" bind:value={data.ectsDiv[ects]}>
+            {/each}
         </div>
     </fieldset>
     <fieldset>
@@ -151,6 +163,14 @@
     }
     
     input[type=number] {
+        width: 3em
+    }
+
+    .ects > label {
+        margin-left: 1.5em
+    }
+    
+    .ects > input {
         width: 3em
     }
 

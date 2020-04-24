@@ -1,12 +1,11 @@
-let dataSubjects
+let dataSubjects = {1: [], 2: []}
 
 export async function init() {
     let content = await (await fetch('subjects.txt')).text()
     let inputLines = String(content).trim().replace(/[\r\ufffd]/g, '').split('\n')
     if (!inputLines) return
     let keys = inputLines[0].split('\t').map(head => head.trim().toLowerCase())
-    dataSubjects = {1: [], 2: []}
-    let labels = [[], []]
+    let labels = [[], []], ectses = [[], []]
     for (let line of inputLines.slice(1)) {
         let row = Object.fromEntries(line.split('\t')
             .map((val, index) => [keys[index], isNaN(val.trim()) ? val.trim() : (Number(val) || undefined)]))
@@ -14,17 +13,17 @@ export async function init() {
         if (label == 'none') continue
         if (!labels[row.semester - 1].includes(label)) labels[row.semester - 1].push(label)
         dataSubjects[row.semester].push(row)
+        if (!ectses[row.semester - 1].includes(row.ects)) ectses[row.semester - 1].push(row.ects)
     }
-    return labels
+    return {labels, ectses}
 }
 
 export default function prepData(input) {
     let subjectsData = getBatchesData(input.semester, input.students, input.mergeBelow)
-    let ectsDiv = {2: [2], 3: [1, 2], 5: [2, 3], 6: [3, 3], 7: [2, 5]} // how to divide ectses
-    let ectsAvail = {}, periods = (input.periods[0] + input.periods[1])
+    let ectsAvail = {}, periods = input.periods[0] + input.periods[1]
     for (let [label, rooms] of Object.entries(input.rooms)) ectsAvail[label] = rooms.length * input.days.length * periods
-    let ectsSpaces = ectsRequiredForDivisions(ectsDiv, input.periods)
-    return {subjectsData, rooms: input.rooms, days: input.days, ectsDiv, ectsSpaces, ectsAvail}
+    let ectsSpaces = ectsRequiredForDivisions(input.ectsDiv, input.periods)
+    return {subjectsData, rooms: input.rooms, days: input.days, ectsDiv: input.ectsDiv, ectsSpaces, ectsAvail}
 }
 
 function getBatchesData(semester, students, mergeBelow) {
