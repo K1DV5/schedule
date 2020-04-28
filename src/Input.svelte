@@ -180,10 +180,11 @@
         padding-left: .5em
     }
 
-    input {
+    :global(input) {
         border: none;
         border-bottom: solid cyan 1px;
-        padding: .2em
+        padding: .2em;
+        background-color: lightgrey
     }
 
     @media(print) {
