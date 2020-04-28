@@ -69,6 +69,7 @@ function chooseSpace(spaces, ectsSpace, sectionData, subjectData, assignedDays) 
                                               mergeConsecutive(subjectData[day][halfDay]))
         if (intersec < ectsSpace || assignedDays.includes(day)) continue  // not desired
         // available.push([...space, iStart])
+        if (halfDay == 'morning') iStart += intersec - ectsSpace;
         (intersec == ectsSpace ? exactSpaces : moreSpaces).push([...space, iStart])
     }
     let available = exactSpaces.length ? exactSpaces : moreSpaces
