@@ -11,6 +11,7 @@
         },
         days: '5',
         semester: '1',
+        year: 2020,
         students: [[20, 10], [32, 23, 78], [12], [23, 23, 34], [78, 14, 15, 13, 15]],
         ects: ['5', '5'],
         mergeBelow: 40,
@@ -28,6 +29,7 @@
         let data = {
             rooms: Object.fromEntries(Object.entries(rawData.rooms).map(([label, rooms]) => [label, rooms.split(/(\s|,)+/).map(rm => rm.trim()).filter(rm => rm)])),
             semester,
+            year: rawData.year,
             days: weekDays.slice(0, Number(rawData.days)),
             periods: rawData.ects.map(num => Number(num)),
             students: {
@@ -40,7 +42,7 @@
             mergeBelow: rawData.mergeBelow,
             ectsDiv
         }
-        return prepData(data)
+        return {...prepData(data), year: data.year, semester: data.semester}
     }
 </script>
 
@@ -85,6 +87,10 @@
 <form>
     <fieldset>
         <legend>General</legend>
+        <div>
+            <label for="year">Year:</label>
+            <input type="number" min="1970" max="10000" id="year" bind:value={data.year}>
+        </div>
         <div>
             <label for="sem">Semester:</label>
             <select name="semester" id="sem" bind:value={data.semester}>
@@ -164,6 +170,10 @@
     
     input[type=number] {
         width: 3em
+    }
+
+    #year {
+        width: 4em
     }
 
     .ects > label {

@@ -1,4 +1,4 @@
-let dataSubjects = {1: [], 2: []}
+let dataSubjects
 
 export async function init() {
     let content = await (await fetch('subjects.txt')).text()
@@ -6,6 +6,7 @@ export async function init() {
     if (!inputLines) return
     let keys = inputLines[0].split('\t').map(head => head.trim().toLowerCase())
     let labels = [[], []], ectses = [[], []]
+    dataSubjects = {1: [], 2: []}
     for (let line of inputLines.slice(1)) {
         let row = Object.fromEntries(line.split('\t')
             .map((val, index) => [keys[index], isNaN(val.trim()) ? val.trim() : (Number(val) || undefined)]))

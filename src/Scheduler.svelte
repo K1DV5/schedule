@@ -1,32 +1,44 @@
 <script>
     import Input, {getInput} from './Input.svelte'
-    import Table, {toTables} from './Table.svelte'
+    import Table from './Table.svelte'
 
     let schedule = {}, progress = false
     let shown = 'section'
+    let saveFor = {year: null, semester: null}
 
     let schWorker = new Worker('algo.js')
     schWorker.onmessage = event => {
         progress = false
-        schedule = toTables(event.data)
-    }
-
-    function changeShown(to) {
-        return function() {
-            shown = to
-        }
+        schedule = event.data
     }
 
     function generate() {
         progress = true
+        let data = getInput()
+        saveFor.year = data.year
+        saveFor.semester = data.semester
         schWorker.postMessage(getInput())
     }
 
-    function followHash(event) {
-        let [tab, hash] = event.newURL.split('#').slice(1)
-        if (!['section', 'room', 'subject'].includes(tab)) return
-        shown = tab
-        if (hash) setTimeout(() => window.location.hash = '#' + hash, 300)
+    function save(event) {
+        let saveURL = 'http://localhost/save'
+        let init = {method: 'post', headers: saveFor}
+        fetch(saveURL, init).then(res => {
+            if (res.status == 200) {
+                fetch(saveURL, {...init, body: JSON.stringify(schedule)}).then(res => {
+                    if (res.status == 200) {alert('Success')}
+                    else {alert('Failed')}
+                })
+            } else if (res.status == 409) {
+                if (confirm('Already exists, overwrite?')) {
+                    fetch(saveURL, {...init, body: JSON.stringify(schedule)}).then(res => {
+                        if (res.status == 200) {alert('Success')}
+                        else {alert('Failed')}
+                    })
+                } else alert('Cancelled')
+            }
+        })
+        event.preventDefault()
     }
 
 </script>
@@ -38,20 +50,19 @@
     </div>
     {#if schedule.success}
         <div class="noprint message">{schedule.message}</div>
+        <button on:click={save}>Save</button>
         <div class="noprint tabs">
-            <button class="tab{shown == 'section' ? '' : 'NC'}" on:click={changeShown('section')}>Sections</button>
-            <button class="tab{shown == 'room' ? '' : 'NC'}" on:click={changeShown('room')}>Rooms</button>
-            <button class="tab{shown == 'subject' ? '' : 'NC'}" on:click={changeShown('subject')}>Subject/Teacher</button>
+            <button class="tab{shown == 'section' ? '' : 'NC'}" on:click={() => shown = 'section'}>Sections</button>
+            <button class="tab{shown == 'room' ? '' : 'NC'}" on:click={() => shown = 'room'}>Rooms</button>
+            <button class="tab{shown == 'subject' ? '' : 'NC'}" on:click={() => shown = 'subject'}>Subject/Teacher</button>
         </div>
-        <Table data={schedule.bySection} visible={shown == 'section'}/>
-        <Table data={schedule.byRoom} visible={shown == 'room'}/>
-        <Table data={schedule.bySubject} visible={shown == 'subject'}/>
+        <Table data={schedule.bySection} kind="section" visible={shown == 'section'}/>
+        <Table data={schedule.byRoom} kind="room" visible={shown == 'room'}/>
+        <Table data={schedule.bySubject} kind="subject" visible={shown == 'subject'}/>
     {:else if schedule.message}
         <div class="message">{schedule.message}</div>
     {/if}
 </main>
-
-<svelte:window on:hashchange={followHash} />
 
 <style>
     .tabs {

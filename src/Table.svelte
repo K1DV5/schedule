@@ -1,9 +1,8 @@
 <script>
     export let data = {}
+    export let kind
     export let visible = 1
-</script>
 
-<script context="module">
     let days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
     let periods = ['08:00-08:40 am', '08:50-09:30 am', '09:40-10:20 am', '10:30-11:10 am', '11:20-12:00 am', '12:00am-01:30pm', '01:30-02:10 pm', '02:20-03:00 pm', '03:10-03:50 pm', '04:00-01:40 pm', '04:50-05:30 pm']
 
@@ -37,32 +36,28 @@
         return rows
     }
 
-    export function toTables(data) {
-        let sched = {...data}
-        if (data.success) {
-            // section
-            sched.bySection = []
-            for (let [batch, schBat] of Object.entries(data.bySection))
+    function toTables(data, which) {
+        let tables = []
+        if (which == 'section') {
+            for (let [batch, schBat] of Object.entries(data))
                 for (let [section, schSec] of Object.entries(schBat))
-                    sched.bySection.push({title: 'Year ' + batch + ' Section ' + section, schedule: table(schSec, label.section)})
-            // subject
-            sched.bySubject = []
-            for (let [batch, schBat] of Object.entries(data.bySubject))
+                    tables.push({title: 'Year ' + batch + ' Section ' + section, schedule: table(schSec, label.section)})
+        } else if (which == 'room') {
+            for (let [batch, schBat] of Object.entries(data))
                 for (let [subject, schSub] of Object.entries(schBat))
-                    sched.bySubject.push({title: subject, schedule: table(schSub, label.subject)})
-            // room
-            sched.byRoom = []
-            for (let [_, schLabel] of Object.entries(data.byRoom))
+                    tables.push({title: subject, schedule: table(schSub, label.room)})
+        } else { // subject
+            for (let [_, schLabel] of Object.entries(data))
                 for (let [room, schRm] of Object.entries(schLabel))
-                    sched.byRoom.push({title: room, schedule: table(schRm, label.room)})
+                    tables.push({title: room, schedule: table(schRm, label.subject)})
         }
-        return sched
+        return tables
     }
 
 </script>
 
 <div style="display:{visible ? 'block' : 'none'}">
-    {#each data as data}
+    {#each toTables(data, kind) as data}
         <div>
             <h3>{data.title}</h3>
             <table border="1">
