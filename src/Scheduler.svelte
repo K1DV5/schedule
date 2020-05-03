@@ -21,7 +21,7 @@
     }
 
     function save(event) {
-        let saveURL = 'http://localhost/save'
+        let saveURL = '/save'
         let init = {method: 'post', headers: saveFor}
         fetch(saveURL, init).then(res => {
             if (res.status == 200) {

@@ -1,6 +1,6 @@
 <script context="module">
 
-    let authServer = 'http://localhost/auth'
+    let authServer = '/auth'
     /* let authServer = '/auth' */
 
     export function logOut(onOut) {

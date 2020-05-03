@@ -2,6 +2,8 @@
     import prepData, {init} from './data.js'
 
     let streams = ['thermal', 'industrial', 'motor', 'manufacturing', 'design', 'railway']
+    let now = new Date()
+    let semester = now.getMonth() > 7 ? '1' : '2'
     let rawData = {
         rooms: {
             general: '311 313 310 319 338 339 nb011',
@@ -10,8 +12,8 @@
             computer: 'Lab 6'
         },
         days: '5',
-        semester: '1',
-        year: 2020,
+        semester,
+        year: now.getFullYear() - (semester == '1' ? 0 : 1),
         students: [[20, 10], [32, 23, 78], [12], [23, 23, 34], [78, 14, 15, 13, 15]],
         ects: ['5', '5'],
         mergeBelow: 40,
@@ -90,6 +92,7 @@
         <div>
             <label for="year">Year:</label>
             <input type="number" min="1970" max="10000" id="year" bind:value={data.year}>
+            <span class="end-year">/ {data.year + 1}</span>
         </div>
         <div>
             <label for="sem">Semester:</label>
@@ -174,6 +177,11 @@
 
     #year {
         width: 4em
+    }
+
+    .end-year {
+        font-family: sans-serif;
+        font-size: 90%
     }
 
     .ects > label {

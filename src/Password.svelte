@@ -3,7 +3,7 @@
     let old = '', newPass = ''
 
     function change(event) {
-        fetch('http://localhost/auth', {method: 'PATCH', headers: {old, new: newPass}}).then(res => {
+        fetch('/auth', {method: 'PATCH', headers: {old, new: newPass}}).then(res => {
             if (res.status == 200) {
                 alert('Successfully changed')
             } else {

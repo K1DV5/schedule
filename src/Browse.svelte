@@ -5,7 +5,7 @@
     let shown = null
 
     function refresh() {
-        fetch('http://localhost/get', {method: 'post'}).then(res => {
+        fetch('/get', {method: 'post', credentials: 'include'}).then(res => {
             res.json().then(data => {
                 for (let [i, schedule] of schedules.entries()) {
                     let key = schedule.year + '-' + schedule.semester
@@ -29,7 +29,7 @@
 
     function delSch() {
         if (shown === null) return
-        fetch('http://localhost', {method: 'delete', headers: {year: shown.year, semester: shown.semester}}).then(res => {
+        fetch('/', {method: 'delete', headers: {year: shown.year, semester: shown.semester}, credentials: 'include'}).then(res => {
             if (res.status == 200) {
                 refresh()
                 shown = null
