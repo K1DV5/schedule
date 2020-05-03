@@ -17,16 +17,29 @@
 
 <form on:submit={change}>
     <fieldset>
-        <div>
-            <label>Old password:</label>
-            <input type="password" bind:value={old}>
-        </div>
-        <br>
-        <div>
-            <label>New password:</label>
-            <input type="password" bind:value={newPass}>
-        </div>
-        <p><button on:click={change}>Change</button></p>
+        <table>
+            <tr>
+                <td>Old:</td>
+                <td><input type="password" bind:value={old}></td>
+            </tr>
+            <tr>
+                <td>New:</td>
+                <td><input type="password" bind:value={newPass}></td>
+            </tr>
+        </table>
+        <button on:click={change}>Change</button>
     </fieldset>
 </form>
 
+<style>
+    form {
+        width: fit-content;
+        margin-top: 20vh;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    button {
+        margin-top: 1em;
+    }
+</style>

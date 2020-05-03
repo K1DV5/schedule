@@ -15,18 +15,21 @@
 
     export let onIn
 
-    let password = '123'
-    let error = false
+    let password = ''
+    let check = true
 
-    /* fetch(authServer, {method: 'POST', credentials: 'include'}).then(res => { if (res.status == 200) onIn() }) */
-    onIn()
+    fetch(authServer, {method: 'POST', credentials: 'include'}).then(res => { if (res.status == 200) onIn() })
+    /* onIn() */
 
     function login(event) {
+        check = 'ing'
         fetch(authServer, {method: 'POST', headers: {pass: password}}).then(res => {
-            if (res.status == 200) onIn()
-            else {
-                error = true
-                setTimeout(() => error = false, 1000)
+            if (res.status == 200) {
+                onIn()
+                check = true
+            } else {
+                check = false
+                setTimeout(() => check = true, 2000)
             }
         })
         event.preventDefault()
@@ -38,8 +41,10 @@
     <fieldset>
         <p>Password</p>
         <input type="password" bind:value={password}>
-        {#if error}
-            <p class="error">Incorrect password</p>
+        {#if check == 'ing'}
+            <small>Checking...</small>
+        {:else if !check}
+            <small class="error">Incorrect password</small>
         {/if}
         <p><button on:click={login}>Login</button></p>
     </fieldset>
@@ -49,11 +54,14 @@
     form {
         width: fit-content;
         margin: auto;
-        margin-top: 40vh;
+        margin-top: 20vh;
     }
 
     .error {
-        font-size: small;
         color: red
+    }
+
+    small {
+        display: block
     }
 </style>

@@ -44,58 +44,13 @@
 </script>
 
 <main>
-    <div class="noprint">
-        <Input />
-        <button on:click={generate}>{progress ? 'Generating...' : 'Generate'}</button>
-    </div>
+    <Input />
+    <button on:click={generate} class="noprint">{progress ? 'Generating...' : 'Generate'}</button>
     {#if schedule.success}
-        <div class="noprint message">{schedule.message}</div>
-        <button on:click={save}>Save</button>
-        <div class="noprint tabs">
-            <button class="tab{shown == 'section' ? '' : 'NC'}" on:click={() => shown = 'section'}>Sections</button>
-            <button class="tab{shown == 'room' ? '' : 'NC'}" on:click={() => shown = 'room'}>Rooms</button>
-            <button class="tab{shown == 'subject' ? '' : 'NC'}" on:click={() => shown = 'subject'}>Subject/Teacher</button>
-        </div>
-        <Table data={schedule.bySection} kind="section" visible={shown == 'section'}/>
-        <Table data={schedule.byRoom} kind="room" visible={shown == 'room'}/>
-        <Table data={schedule.bySubject} kind="subject" visible={shown == 'subject'}/>
+        <button on:click={save} class="noprint" >Save</button>
+        <Table data={schedule} />
     {:else if schedule.message}
         <div class="message">{schedule.message}</div>
     {/if}
 </main>
 
-<style>
-    .tabs {
-        background-color: lightgray;
-    }
-
-    .tabNC {
-        border: none;
-    }
-
-    .tab {
-        border: none;
-        border-bottom: solid darkgrey;
-    }
-
-    .message {
-        white-space: pre-wrap;
-    }
-
-    :global(button) {
-        background: transparent;
-        border: 2px solid #888;
-        padding: .5em;
-    }
-
-    :global(select) {
-        background: transparent;
-        border: 2px solid #888;
-    }
-
-    @media print {
-        .noprint {
-            display: none
-        }
-    }
-</style>

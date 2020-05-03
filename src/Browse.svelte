@@ -3,7 +3,6 @@
 
     let schedules = []
     let shown = null
-    let tab = 'section'
 
     function refresh() {
         fetch('http://localhost/get', {method: 'post'}).then(res => {
@@ -44,28 +43,18 @@
 
 {#if shown === null}
     {refresh() || ''}
+    <h3 class="noprint">Saved schedules</h3>
     {#each [...schedules.entries()] as [i, schedule]}
         <div on:click={() => shown = {i, ...schedules[i]}} class="item">
-            {schedule.year} Semester {schedule.semester}
+            {schedule.year}/{schedule.year + 1} Semester {schedule.semester}
         </div>
     {/each}
 {:else}
-<div class="shown" style="display:{shown === null ? 'none' : 'block'}">
-    <button on:click={() => shown = null}>Back</button>
-    <button on:click={delSch}>Delete</button>
-    <div>
-        {shown.year} Semester {shown.semester}
-        <div class="noprint message">{shown.message}</div>
-        <div class="noprint tabs">
-            <button class="tab{tab == 'section' ? '' : 'NC'}" on:click={() => tab = 'section'}>Sections</button>
-            <button class="tab{tab == 'room' ? '' : 'NC'}" on:click={() => tab = 'room'}>Rooms</button>
-            <button class="tab{tab == 'subject' ? '' : 'NC'}" on:click={() => tab = 'subject'}>Subject/Teacher</button>
-        </div>
-        <Table data={shown.bySection} kind="section" visible={tab == 'section'}/>
-        <Table data={shown.byRoom} kind="room" visible={tab == 'room'}/>
-        <Table data={shown.bySubject} kind="subject" visible={tab == 'subject'}/>
+    <div class="shown" style="display:{shown === null ? 'none' : 'block'}">
+        <button class="noprint" on:click={() => shown = null}>Back</button>
+        <button class="noprint" on:click={delSch}>Delete</button>
+        <Table data={shown} />
     </div>
-</div>
 {/if}
 
 <style>

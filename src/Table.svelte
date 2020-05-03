@@ -1,7 +1,6 @@
 <script>
     export let data = {}
-    export let kind
-    export let visible = 1
+    let visible = 'section'
 
     let days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
     let periods = ['08:00-08:40 am', '08:50-09:30 am', '09:40-10:20 am', '10:30-11:10 am', '11:20-12:00 am', '12:00am-01:30pm', '01:30-02:10 pm', '02:20-03:00 pm', '03:10-03:50 pm', '04:00-01:40 pm', '04:50-05:30 pm']
@@ -56,31 +55,39 @@
 
 </script>
 
-<div style="display:{visible ? 'block' : 'none'}">
-    {#each toTables(data, kind) as data}
-        <div>
-            <h3>{data.title}</h3>
-            <table border="1">
-                <tr>
-                    <th>Time</th>
-                    {#each days.slice(0, data.schedule[0].length) as day}
-                        <th>{day}</th>
-                    {/each}
-                </tr>
-                {#each [...data.schedule.entries()] as [i, row]}
-                    <tr>
-                    <th class="time">{periods[i]}</th>
-                    {#each row as col}
-                        {#if col}
-                            <td rowspan={col.span} colspan={col.width} style="{'background:#' + col.color}">{col.session}</td>
-                        {/if}
-                    {/each}
-                    </tr>
-                {/each}
-            </table>
-        </div>
-    {/each}
+<div class="noprint message">{data.message}</div>
+<div class="noprint tabs">
+    <button class="tab{visible == 'section' ? '' : 'NC'}" on:click={() => visible = 'section'}>Sections</button>
+    <button class="tab{visible == 'room' ? '' : 'NC'}" on:click={() => visible = 'room'}>Rooms</button>
+    <button class="tab{visible == 'subject' ? '' : 'NC'}" on:click={() => visible = 'subject'}>Subject/Teacher</button>
 </div>
+{#each [[data.bySection, 'section'], [data.byRoom, 'room'], [data.bySubject, 'subject']] as [data, kind]}
+    <div style="display:{visible == kind ? 'block' : 'none'}">
+        {#each toTables(data, kind) as data}
+            <div>
+                <h3>{data.title}</h3>
+                <table border="1">
+                    <tr>
+                        <th>Time</th>
+                        {#each days.slice(0, data.schedule[0].length) as day}
+                            <th>{day}</th>
+                        {/each}
+                    </tr>
+                    {#each [...data.schedule.entries()] as [i, row]}
+                        <tr>
+                        <th class="time">{periods[i]}</th>
+                        {#each row as col}
+                            {#if col}
+                                <td rowspan={col.span} colspan={col.width} style="{'background:#' + col.color}">{col.session}</td>
+                            {/if}
+                        {/each}
+                        </tr>
+                    {/each}
+                </table>
+            </div>
+        {/each}
+    </div>
+{/each}
 
 <style>
     .time {
@@ -97,6 +104,23 @@
     td {
         white-space: pre-line;
         text-align: center
+    }
+
+    .tabs {
+        background-color: lightgray;
+    }
+
+    .tabNC {
+        border: none;
+    }
+
+    .tab {
+        border: none;
+        border-bottom: solid darkgrey;
+    }
+
+    .message {
+        white-space: pre-wrap;
     }
 
     @media print {

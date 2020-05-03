@@ -84,7 +84,7 @@
 
 </script>
 
-<form>
+<form class="noprint">
     <fieldset>
         <legend>General</legend>
         <div>
@@ -188,6 +188,11 @@
         padding: 0.2em;
         padding-right: .5em;
         padding-left: .5em
+    }
+
+    select {
+        background: transparent;
+        border: 2px solid #888;
     }
 
     :global(input) {

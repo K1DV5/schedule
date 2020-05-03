@@ -8,6 +8,7 @@
     let page = 'browse'
 
     function onIn() {
+        page = 'browse'
         loggedIn = true
     }
 
@@ -17,13 +18,15 @@
 
 </script>
 
-<nav>
+<nav class="noprint">
     {#if loggedIn}
         <h1>Scheduler</h1>
         <button on:click={() => page = 'new'}>New</button>
         <button on:click={() => page = 'browse'}>Borwse</button>
         <button on:click={() => page = 'password'}>Change password</button>
         <button on:click={logOut(onOut)}>Log out</button>
+    {:else}
+        <h1 class="splash">Scheduler</h1>
     {/if}
 </nav>
 {#if loggedIn}
@@ -37,3 +40,27 @@
 {:else}
     <Login onIn={onIn}/>
 {/if}
+
+<style>
+    :global(h1, h3) {
+        font-family: sans-serif
+    }
+    .splash {
+        width: fit-content;
+        margin-left: auto;
+        margin-right: auto;
+        margin-top: 10vh
+    }
+
+    :global(button) {
+        background: transparent;
+        border: 2px solid #888;
+        padding: .5em;
+    }
+
+    @media print {
+        :global(.noprint) {
+            display: none
+        }
+    }
+</style>
