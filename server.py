@@ -5,6 +5,7 @@ from os import path, remove
 from random import random
 from json import dumps, load
 from hashlib import pbkdf2_hmac
+from openpyxl import load_workbook
 
 
 def hash_pass(passw: str):
@@ -19,6 +20,16 @@ with open(pass_path) as file:
 public_cache = {}
 authenticated = {}
 mime = {'.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript'}
+
+
+def extract_subjects():
+    '''extract subjects data from the excel file'''
+    sheet = load_workbook('data/subjects.xlsx').active
+    txt = ''
+    for row in sheet.rows:
+        txt += '\t'.join([str(cell.value) if cell.value else '' for cell in row]) + '\n'
+    with open('public/subjects.txt', 'w') as file:
+        file.write(txt.strip())
 
 
 class handler(BaseHTTPRequestHandler):
@@ -100,6 +111,14 @@ class handler(BaseHTTPRequestHandler):
                 self.wfile.write(dumps(saved).encode())
                 return
             self.send_header(401)
+        elif self.path == '/curriculum':
+            if self.signed_in() or 1:
+                with open('data/sub.xlsx', 'wb') as file:
+                    file.write(self.rfile.read(int(self.headers['Content-Length'])))
+                extract_subjects()
+                self.send_response(200)
+            else:
+                self.send_response(401)
         else:
             self.send_response(404)
         self.send_header('Access-Control-Allow-Origin', 'http://localhost:5000')  # cors
