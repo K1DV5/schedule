@@ -4,10 +4,18 @@ from glob import glob
 from os import path, remove
 from random import random
 from json import dumps, load
+from hashlib import pbkdf2_hmac
 
-pass_path = '../data/pass.txt'
+
+def hash_pass(passw: str):
+    return pbkdf2_hmac('sha256', passw.encode(), b'salt', 10000).hex()
+
+
+pass_path = 'pass.txt'
 with open(pass_path) as file:
-    password = int(file.read())
+    password = file.read()
+    password = password if password else hash_pass('')
+
 public_cache = {}
 authenticated = {}
 mime = {'.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript'}
@@ -27,9 +35,9 @@ class handler(BaseHTTPRequestHandler):
         # for files
         if self.path == '/':
             self.path = '/index.html'
-        for p in glob('../public/**/*', recursive=True):
+        for p in glob('public/**/*', recursive=True):
             if not path.isfile(p) \
-                    or p.replace('\\', '/')[len('../public'):] != self.path:
+                    or p.replace('\\', '/')[len('public'):] != self.path:
                 continue
             self.send_response(200)
             self.send_header('Content-Type', mime.get(path.splitext(p)[1], 'text/plain'))
@@ -51,7 +59,7 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path == '/auth':
             if 'pass' in self.headers:
-                if hash(self.headers['pass']) == password:
+                if hash_pass(self.headers['pass']) == password:
                     token = hash(random())
                     authenticated[self.client_address[0]] = token
                     self.send_response(200)
@@ -65,7 +73,7 @@ class handler(BaseHTTPRequestHandler):
         elif self.path == '/save':
             save_key = self.headers['year'] + '-' + self.headers['semester']
             length = int(self.headers['Content-Length'])
-            dpath = '../data/schedule'
+            dpath = 'data/schedule'
             if length:  # overwrite
                 with open(path.join(dpath, save_key + '.json'), 'w') as file:
                     file.write(self.rfile.read(length).decode())
@@ -80,7 +88,7 @@ class handler(BaseHTTPRequestHandler):
             self.send_header('Access-Control-Allow-Origin', 'http://localhost:5000')  # cors
             self.end_headers()
             saved = {}
-            for p in glob('../data/schedule/*.json'):
+            for p in glob('data/schedule/*.json'):
                 with open(p) as file:
                     saved[path.splitext(path.basename(p))[0]] = load(file)
             self.wfile.write(dumps(saved).encode())
@@ -88,6 +96,7 @@ class handler(BaseHTTPRequestHandler):
         else:
             self.send_response(404)
         self.send_header('Access-Control-Allow-Origin', 'http://localhost:5000')  # cors
+        self.send_header('Access-Control-Allow-Credentials', 'true')  # cors
         self.end_headers()
 
     def do_DELETE(self):
@@ -97,22 +106,23 @@ class handler(BaseHTTPRequestHandler):
             self.send_header('Set-Cookie', 'token=')
         elif self.path == '/':
             key = self.headers['year'] + '-' + self.headers['semester']
-            sch_path = path.join('../data/schedule', key + '.json')
+            sch_path = path.join('data/schedule', key + '.json')
             if path.exists(sch_path):
                 remove(sch_path)
                 self.send_response(200)
             else:
                 self.send_response(404)
         self.send_header('Access-Control-Allow-Origin', 'http://localhost:5000')  # cors
+        self.send_header('Access-Control-Allow-Credentials', 'true')  # cors
         self.end_headers()
 
     def do_PATCH(self):
         if self.path == '/auth':
-            old = hash(self.headers['old'])
+            old = hash_pass(self.headers['old'])
             if old == password:
-                passw = hash(self.headers['new'])
+                passw = hash_pass(self.headers['new'])
                 with open(pass_path, 'w') as file:
-                    file.write(str(passw))
+                    file.write(passw)
                 globals()['password'] = passw  # password = passw does not work
                 self.send_response(200)
             else:
@@ -122,12 +132,15 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Origin', 'http://localhost:5000')  # cors
         self.end_headers()
 
-    def do_OPTIONS(self):
-        self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', 'http://localhost:5000')  # cors preflight
-        self.send_header('Access-Control-Allow-Methods', 'POST,DELETE,PATCH')
-        self.send_header('Access-Control-Allow-Headers', 'pass,year,semester,old,new')
-        self.end_headers()
+    def do_OPTIONS(self):  # cors
+        self.send_response(200)  # cors
+        self.send_header('Access-Control-Allow-Origin', 'http://localhost:5000')  # cors
+        self.send_header('Access-Control-Allow-Methods', 'POST,DELETE,PATCH')  # cors
+        self.send_header('Access-Control-Allow-Headers', 'pass,year,semester,old,new')  # cors
+        self.send_header('Access-Control-Allow-Credentials', 'true')  # cors
+        self.end_headers()  # cors
 
 
+# :%s,^.*cors\n,,g to remove cors lines
+print('serving...')
 HTTPServer(('localhost', 80), handler).serve_forever()
