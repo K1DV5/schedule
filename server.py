@@ -27,7 +27,7 @@ class handler(BaseHTTPRequestHandler):
         '''check if signed in'''
         cookie = BaseCookie(self.headers['Cookie']).get('token', None)
         token = authenticated.get(self.client_address[0], None)
-        if cookie is None or cookie.value != token:
+        if cookie is None or int(cookie.value) != token:
             return False
         return True
 
@@ -71,28 +71,35 @@ class handler(BaseHTTPRequestHandler):
             else:
                 self.send_response(203)
         elif self.path == '/save':
-            save_key = self.headers['year'] + '-' + self.headers['semester']
-            length = int(self.headers['Content-Length'])
-            dpath = 'data/schedule'
-            if length:  # overwrite
-                with open(path.join(dpath, save_key + '.json'), 'w') as file:
-                    file.write(self.rfile.read(length).decode())
-                self.send_response(200)
-            else:  # check if exists
-                if path.exists(path.join(dpath, save_key + '.json')):
-                    self.send_response(409)
-                else:
+            if self.signed_in():
+                save_key = self.headers['year'] + '-' + self.headers['semester']
+                length = int(self.headers['Content-Length'])
+                dpath = 'data/schedule'
+                if length:  # overwrite
+                    with open(path.join(dpath, save_key + '.json'), 'w') as file:
+                        file.write(self.rfile.read(length).decode())
                     self.send_response(200)
+                else:  # check if exists
+                    if path.exists(path.join(dpath, save_key + '.json')):
+                        self.send_response(409)
+                    else:
+                        self.send_response(200)
+            else:
+                self.send_response(401)
         elif self.path == '/get':
-            self.send_response(200)
-            self.send_header('Access-Control-Allow-Origin', 'http://localhost:5000')  # cors
-            self.end_headers()
-            saved = {}
-            for p in glob('data/schedule/*.json'):
-                with open(p) as file:
-                    saved[path.splitext(path.basename(p))[0]] = load(file)
-            self.wfile.write(dumps(saved).encode())
-            return
+            # print(authenticated[self.client_address[0]], self.headers['Cookie'])
+            if self.signed_in():
+                self.send_response(200)
+                self.send_header('Access-Control-Allow-Origin', 'http://localhost:5000')  # cors
+                self.send_header('Access-Control-Allow-Credentials', 'true')  # cors
+                self.end_headers()
+                saved = {}
+                for p in glob('data/schedule/*.json'):
+                    with open(p) as file:
+                        saved[path.splitext(path.basename(p))[0]] = load(file)
+                self.wfile.write(dumps(saved).encode())
+                return
+            self.send_header(401)
         else:
             self.send_response(404)
         self.send_header('Access-Control-Allow-Origin', 'http://localhost:5000')  # cors
@@ -100,7 +107,7 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_DELETE(self):
-        if self.path == '/auth':
+        if self.path == '/auth':  # logout
             del authenticated[self.client_address[0]]
             self.send_response(200)
             self.send_header('Set-Cookie', 'token=')
