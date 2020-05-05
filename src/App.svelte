@@ -2,8 +2,7 @@
     import Scheduler from './Scheduler.svelte'
     import Login, {logOut} from './Login.svelte'
     import Browse from './Browse.svelte'
-    import Password from './Password.svelte'
-    import Curriculum from './Curriculum.svelte'
+    import Config from './Config.svelte'
 
     let loggedIn = false
     let page = 'browse'
@@ -24,8 +23,7 @@
         <h1>Scheduler</h1>
         <button on:click={() => page = 'new'}>New</button>
         <button on:click={() => page = 'browse'}>Borwse</button>
-        <button on:click={() => page = 'password'}>Change password</button>
-        <button on:click={() => page = 'curriculum'}>Change curriculum data</button>
+        <button on:click={() => page = 'config'}>Configure</button>
         <button on:click={logOut(onOut)}>Log out</button>
     {:else}
         <h1 class="splash">Scheduler</h1>
@@ -34,10 +32,8 @@
 {#if loggedIn}
     {#if page === 'new'}
         <Scheduler />
-    {:else if page == 'password'}
-        <Password />
-    {:else if page == 'curriculum'}
-        <Curriculum />
+    {:else if page == 'config'}
+        <Config />
     {:else}
         <Browse />
     {/if}

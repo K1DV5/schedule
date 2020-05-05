@@ -6,9 +6,9 @@
     let periods = ['08:00-08:40 am', '08:50-09:30 am', '09:40-10:20 am', '10:30-11:10 am', '11:20-12:00 am', '12:00am-01:30pm', '01:30-02:10 pm', '02:20-03:00 pm', '03:10-03:50 pm', '04:00-01:40 pm', '04:50-05:30 pm']
 
     let label = {
-        section: session => `${session.subject.code}\n${session.subject.title}\nRoom ${session.room}`,
+        section: session => `${session.subject.teacher || 'TBA'}\n${session.subject.code}\n${session.subject.title}\nRoom ${session.room}`,
         subject: session => `${(isNaN(session.section) ? '' : 'Section ') + session.section}\n\nRoom ${session.room}`,
-        room: session => `Year ${session.batch}\n${isNaN(session.section) ? session.section : 'Section ' + session.section}\n${session.subject.code}\n${session.subject.title}`
+        room: session => `${session.subject.teacher || 'TBA'}\nYear ${session.batch}\n${isNaN(session.section) ? session.section : 'Section ' + session.section}\n${session.subject.code}\n${session.subject.title}`
     }
 
     function table(data, label) {

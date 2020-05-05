@@ -6,18 +6,17 @@
     let shown = 'section'
     let saveFor = {year: null, semester: null}
 
-    let schWorker = new Worker('algo.js')
-    schWorker.onmessage = event => {
-        progress = false
-        schedule = event.data
-    }
-
     function generate() {
         progress = true
         let data = getInput()
         saveFor.year = data.year
         saveFor.semester = data.semester
-        schWorker.postMessage(getInput())
+        fetch('/make', {method: 'POST', body: JSON.stringify(data)}).then(res => {
+            res.json().then(res => {
+                progress = false
+                schedule = res
+            })
+        })
     }
 
     function save(event) {

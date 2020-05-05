@@ -5,6 +5,7 @@
     let now = new Date()
     let semester = now.getMonth() > 7 ? '1' : '2'
     let rawData = {
+        streams: [{}, {5: ['design', 'thermal']}],
         rooms: {
             general: '311 313 310 319 338 339 nb011',
             drawing: '320 321',
@@ -44,14 +45,18 @@
             mergeBelow: rawData.mergeBelow,
             ectsDiv
         }
-        return {...prepData(data), year: data.year, semester: data.semester}
+        return {...data, year: data.year, semester: data.semester}
     }
 </script>
 
 <script>
     let data = rawData
     let labels = [[], []], ectses = [[], []]
-    init(data.semester).then(init => {labels = init.labels; ectses = init.ectses})
+    fetch('/init', {method: 'POST'}).then(res => res.json().then(json => {
+        labels = json.labels
+        ectses = json.ectses
+        data.streams = json.streams
+    }))
 
     function addSection(index) {
         return function(eve) {
@@ -134,21 +139,21 @@
     <fieldset>
         <legend>Students</legend>
         <table>
-            {#each Object.entries(data.students) as [iBatch, students]}
+            {#each Object.entries(data.streams[data.semester - 1]) as [batch, streams]}
                 <tr>
-                    <th>Y{Number(iBatch) + 1}</th>
-                    {#if iBatch < 3 || iBatch == 3 && data.semester == 1}
-                        {#each [...students.entries()] as [i, _]}
-                            <td>S{i + 1}:</td>
-                            <td><input type="number" min="1" max="99" bind:value={students[i]}></td>
-                        {/each}
-                        <td><button on:click={addSection(iBatch)}>+</button></td>
-                        <td><button on:click={remSection(iBatch)}>x</button></td>
-                    {:else}
+                    <th>Y{batch}</th>
+                    {#if streams.length}
                         {#each [...streams.entries()] as [i, stream]}
                             <td>{stream}:</td>
-                            <td><input type="number" min="1" max="99" bind:value={students[i]}></td>
+                            <td><input type="number" min="1" max="99" bind:value={data.students[batch - 1][i]}></td>
                         {/each}
+                    {:else}
+                        {#each [...data.students[batch - 1].entries()] as [i, _]}
+                            <td>S{i + 1}:</td>
+                            <td><input type="number" min="1" max="99" bind:value={data.students[batch - 1][i]}></td>
+                        {/each}
+                        <td><button on:click={addSection(batch - 1)}>+</button></td>
+                        <td><button on:click={remSection(batch - 1)}>x</button></td>
                     {/if}
                 </tr>
             {/each}

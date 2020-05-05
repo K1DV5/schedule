@@ -1,18 +1,19 @@
-from http.server import BaseHTTPRequestHandler, HTTPServer
+# -{cd .. | python -m server}
+from http.server import BaseHTTPRequestHandler
 from http.cookies import BaseCookie
 from glob import glob
 from os import path, remove
 from random import random
-from json import dumps, load
+from json import dumps, load, loads
 from hashlib import pbkdf2_hmac
-from openpyxl import load_workbook
+from .algo import extract_subjects, makeSchedule
 
 
 def hash_pass(passw: str):
     return pbkdf2_hmac('sha256', passw.encode(), b'salt', 10000).hex()
 
 
-pass_path = 'pass.txt'
+pass_path = path.join(path.dirname(__file__), 'pass.txt')  # next to script
 with open(pass_path) as file:
     password = file.read()
     password = password if password else hash_pass('')
@@ -20,16 +21,7 @@ with open(pass_path) as file:
 public_cache = {}
 authenticated = {}
 mime = {'.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript'}
-
-
-def extract_subjects():
-    '''extract subjects data from the excel file'''
-    sheet = load_workbook('data/subjects.xlsx').active
-    txt = ''
-    for row in sheet.rows:
-        txt += '\t'.join([str(cell.value) if cell.value else '' for cell in row]) + '\n'
-    with open('public/subjects.txt', 'w') as file:
-        file.write(txt.strip())
+init = dumps(extract_subjects()).encode()  # for input
 
 
 class handler(BaseHTTPRequestHandler):
@@ -81,11 +73,33 @@ class handler(BaseHTTPRequestHandler):
                 self.send_response(200)
             else:
                 self.send_response(203)
+        elif self.path == '/init':
+            if self.signed_in():
+                self.send_response(200)
+                self.send_header('Access-Control-Allow-Origin', 'http://localhost:5000')  # cors
+                self.send_header('Access-Control-Allow-Credentials', 'true')  # cors
+                self.end_headers()
+                self.wfile.write(init)
+                return
+            else:
+                self.send_response(401)
+        elif self.path == '/make':
+            if self.signed_in():
+                data = loads(self.rfile.read(int(self.headers['Content-Length'])))
+                self.send_response(200)
+                self.send_header('Access-Control-Allow-Origin', 'http://localhost:5000')  # cors
+                self.send_header('Access-Control-Allow-Credentials', 'true')  # cors
+                self.end_headers()
+                sch = makeSchedule(data)
+                self.wfile.write(dumps(sch).encode())
+                return
+            else:
+                self.send_response(401)
         elif self.path == '/save':
             if self.signed_in():
                 save_key = self.headers['year'] + '-' + self.headers['semester']
                 length = int(self.headers['Content-Length'])
-                dpath = 'data/schedule'
+                dpath = 'data'
                 if length:  # overwrite
                     with open(path.join(dpath, save_key + '.json'), 'w') as file:
                         file.write(self.rfile.read(length).decode())
@@ -98,22 +112,21 @@ class handler(BaseHTTPRequestHandler):
             else:
                 self.send_response(401)
         elif self.path == '/get':
-            # print(authenticated[self.client_address[0]], self.headers['Cookie'])
             if self.signed_in():
                 self.send_response(200)
                 self.send_header('Access-Control-Allow-Origin', 'http://localhost:5000')  # cors
                 self.send_header('Access-Control-Allow-Credentials', 'true')  # cors
                 self.end_headers()
                 saved = {}
-                for p in glob('data/schedule/*.json'):
+                for p in glob('data/*.json'):
                     with open(p) as file:
                         saved[path.splitext(path.basename(p))[0]] = load(file)
                 self.wfile.write(dumps(saved).encode())
                 return
-            self.send_header(401)
+            self.send_response(401)
         elif self.path == '/curriculum':
             if self.signed_in() or 1:
-                with open('data/sub.xlsx', 'wb') as file:
+                with open('public/subjects.xlsx', 'wb') as file:
                     file.write(self.rfile.read(int(self.headers['Content-Length'])))
                 extract_subjects()
                 self.send_response(200)
@@ -132,7 +145,7 @@ class handler(BaseHTTPRequestHandler):
             self.send_header('Set-Cookie', 'token=')
         elif self.path == '/':
             key = self.headers['year'] + '-' + self.headers['semester']
-            sch_path = path.join('data/schedule', key + '.json')
+            sch_path = path.join('data', key + '.json')
             if path.exists(sch_path):
                 remove(sch_path)
                 self.send_response(200)
@@ -145,11 +158,11 @@ class handler(BaseHTTPRequestHandler):
     def do_PATCH(self):
         if self.path == '/auth':
             old = hash_pass(self.headers['old'])
+            global password
             if old == password:
-                passw = hash_pass(self.headers['new'])
+                password = hash_pass(self.headers['new'])
                 with open(pass_path, 'w') as file:
-                    file.write(passw)
-                globals()['password'] = passw  # password = passw does not work
+                    file.write(password)
                 self.send_response(200)
             else:
                 self.send_response(401)
@@ -168,5 +181,3 @@ class handler(BaseHTTPRequestHandler):
 
 
 # :%s,^.*cors\n,,g to remove cors lines
-print('serving...')
-HTTPServer(('localhost', 80), handler).serve_forever()
