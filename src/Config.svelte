@@ -27,6 +27,7 @@
 <form>
     <fieldset>
         <legend>Curriculum data</legend>
+        <p>This is a list of subjects with their respective years, semesters, streams, codes, titles, ECTSes and labels (used to specify types of rooms.)</p>
         <p><a href="subjects.xlsx">Download</a> The last data, edit it and upload it.</p>
         <input type="file" bind:this={curriculum}>
         <p><button on:click={changeCurric}>Upload</button></p>
