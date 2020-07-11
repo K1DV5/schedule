@@ -1,7 +1,7 @@
 <script context="module">
 
+    /* let authServer = 'http://localhost/auth' */
     let authServer = '/auth'
-    /* let authServer = '/auth' */
 
     export function logOut(onOut) {
         return function() {
@@ -37,31 +37,23 @@
 
 </script>
 
-<form on:submit={login}>
-    <fieldset>
-        <p>Password</p>
-        <input type="password" bind:value={password}>
-        {#if check == 'ing'}
-            <small>Checking...</small>
-        {:else if !check}
-            <small class="error">Incorrect password</small>
-        {/if}
-        <p><button on:click={login}>Login</button></p>
-    </fieldset>
+<form on:submit={login} style="display: inline">
+    <input type="password" placeholder="Password" bind:value={password}>
+    <button on:click={login}>Login</button>
+    <br>
+    {#if check == 'ing'}
+        <small>Checking...</small>
+    {:else if !check}
+        <small class="error">Incorrect password</small>
+    {/if}
 </form>
 
 <style>
-    form {
-        width: fit-content;
-        margin: auto;
-        margin-top: 20vh;
+    .pw {
+        display: inline-block
     }
 
     .error {
         color: red
-    }
-
-    small {
-        display: block
     }
 </style>

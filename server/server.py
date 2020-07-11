@@ -30,7 +30,7 @@ class handler(BaseHTTPRequestHandler):
         '''check if signed in'''
         cookie = BaseCookie(self.headers['Cookie']).get('token', None)
         token = authenticated.get(self.client_address[0], None)
-        if cookie is None or int(cookie.value) != token:
+        if cookie is None or not cookie.value or int(cookie.value) != token:
             return False
         return True
 
@@ -112,18 +112,28 @@ class handler(BaseHTTPRequestHandler):
             else:
                 self.send_response(401)
         elif self.path == '/get':
-            if self.signed_in():
-                self.send_response(200)
-                self.send_header('Access-Control-Allow-Origin', 'http://localhost:5000')  # cors
-                self.send_header('Access-Control-Allow-Credentials', 'true')  # cors
-                self.end_headers()
-                saved = {}
-                for p in glob('data/*.json'):
-                    with open(p) as file:
-                        saved[path.splitext(path.basename(p))[0]] = load(file)
-                self.wfile.write(dumps(saved).encode())
-                return
-            self.send_response(401)
+            if 'year' in self.headers:
+                fpath = path.join('data', self.headers['year'] + '-' + self.headers['semester'] + '.json')
+                if path.exists(fpath):
+                    self.send_response(200)
+                    self.send_header('Access-Control-Allow-Origin', 'http://localhost:5000')  # cors
+                    self.send_header('Access-Control-Allow-Credentials', 'true')  # cors
+                    self.end_headers()
+                    with open(fpath, 'rb') as file:
+                        self.wfile.write(file.read())
+                    return
+                else:
+                    self.send_response(404)
+            self.send_response(200)
+            self.send_header('Access-Control-Allow-Origin', 'http://localhost:5000')  # cors
+            self.send_header('Access-Control-Allow-Credentials', 'true')  # cors
+            self.end_headers()
+            saved = {}
+            for p in glob('data/*.json'):
+                with open(p) as file:
+                    saved[path.splitext(path.basename(p))[0]] = load(file)
+            self.wfile.write(dumps(saved).encode())
+            return
         elif self.path == '/curriculum':
             if self.signed_in() or 1:
                 with open('public/subjects.xlsx', 'wb') as file:

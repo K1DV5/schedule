@@ -3,8 +3,10 @@
     import Login, {logOut} from './Login.svelte'
     import Browse from './Browse.svelte'
     import Config from './Config.svelte'
+    import Table from './Table.svelte'
 
     let loggedIn = false
+    let showPwInput = false  // for home page, before logging in
     let page = 'browse'
 
     function onIn() {
@@ -14,6 +16,14 @@
 
     function onOut() {
         loggedIn = false
+    }
+
+    async function showCurrent() {
+        let now = new Date()
+        let semester = now.getMonth() > 7 ? '1' : '2'
+        let year = now.getFullYear() - (semester == '1' ? 0 : 1)
+        let res = await (await fetch('/get', {method: 'post', credentials: 'include', headers: {year, semester}})).json()
+        return {year, semester, ...res, message: ''}
     }
 
 </script>
@@ -26,7 +36,15 @@
         <button on:click={() => page = 'config'}>Configure</button>
         <button on:click={logOut(onOut)}>Log out</button>
     {:else}
-        <h1 class="splash">Scheduler</h1>
+        <div id="home-nav">
+            <h1>Scheduler</h1>
+            <div>
+                <button style="display: {showPwInput ? 'none' : 'block'}" on:click={() => showPwInput = true}>Login</button>
+                <div style="display: {showPwInput ? 'block' : 'none'}">
+                    <Login onIn={onIn}/>
+                </div>
+            </div>
+        </div>
     {/if}
 </nav>
 {#if loggedIn}
@@ -38,18 +56,30 @@
         <Browse />
     {/if}
 {:else}
-    <Login onIn={onIn}/>
+    {#await showCurrent()}
+        loading
+    {:then schedule}
+        <h3 class="noprint">Schedule for year {schedule.year}/{schedule.year + 1} semester {schedule.semester}</h3>
+        <small class="noprint">Updated {Date(schedule.updated * 1000)}</small>
+        <br/>
+        
+        <Table data={schedule} />
+    {:catch}
+        <div>
+            No schedule for the current semester.
+        </div>
+    {/await}
 {/if}
 
 <style>
     :global(h1, h3) {
         font-family: sans-serif
     }
-    .splash {
-        width: fit-content;
-        margin-left: auto;
-        margin-right: auto;
-        margin-top: 10vh
+
+    #home-nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
     }
 
     :global(button) {

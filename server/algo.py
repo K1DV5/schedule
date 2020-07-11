@@ -1,6 +1,7 @@
 # -{cd .. | python -m server}
 from openpyxl import load_workbook
 from random import choice
+from time import time
 
 
 dataSubjects = None
@@ -275,7 +276,6 @@ def makeSchedule(data):
                'days': data['days'],
                'ectsDiv': {int(ects): div for ects, div in data['ectsDiv'].items()},
                'ectsSpaces': ectsSpaces}
-    print(data['ectsDiv'])
     required = schedule(prepped, True)
     freedomFactor = 1.05
     spaceMessage = ['(Required)', '(Available)']
@@ -292,7 +292,12 @@ def makeSchedule(data):
     for trial in range(trials):
         sched = schedule(prepped)
         if sched:
-            return {'success': True, 'byRoom': sched[0], 'bySection': sched[1], 'bySubject': sched[2], 'message': f'Trial: {trial}\n{spaceMessage}'}
+            return {'success': True,
+                    'byRoom': sched[0],
+                    'bySection': sched[1],
+                    'bySubject': sched[2],
+                    'message': f'Trial: {trial}\n{spaceMessage}',
+                    'time': int(time())}
     return {'success': False, 'message': f'Try again.\n{spaceMessage}'}
 
 
