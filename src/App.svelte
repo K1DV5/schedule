@@ -22,8 +22,12 @@
         let now = new Date()
         let semester = now.getMonth() > 7 ? '1' : '2'
         let year = now.getFullYear() - (semester == '1' ? 0 : 1)
-        let res = await (await fetch('/get', {method: 'post', credentials: 'include', headers: {year, semester}})).json()
-        return {year, semester, ...res, message: ''}
+        let res = await fetch('/get', {method: 'post', credentials: 'include', headers: {year, semester}})
+        if (res.status == 200) {
+            let data = await res.json()
+            return {year, semester, ...data, message: ''}
+        }
+        throw res.statusText
     }
 
 </script>
@@ -60,7 +64,7 @@
         loading
     {:then schedule}
         <h3 class="noprint">Schedule for year {schedule.year}/{schedule.year + 1} semester {schedule.semester}</h3>
-        <small class="noprint">Updated {Date(schedule.updated * 1000)}</small>
+        <small class="noprint">Updated {new Date(schedule.time * 1000)}</small>
         <br/>
         
         <Table data={schedule} />
