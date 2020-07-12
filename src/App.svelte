@@ -65,13 +65,9 @@
     {:then schedule}
         <h3 class="noprint">Schedule for year {schedule.year}/{schedule.year + 1} semester {schedule.semester}</h3>
         <small class="noprint">Updated {new Date(schedule.time * 1000)}</small>
-        <br/>
-        
         <Table data={schedule} />
     {:catch}
-        <div>
-            No schedule for the current semester.
-        </div>
+        <div> No schedule for the current semester. </div>
     {/await}
 {/if}
 

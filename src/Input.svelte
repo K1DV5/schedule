@@ -1,51 +1,52 @@
 <script context="module">
     import prepData, {init} from './data.js'
 
-    let streams = ['thermal', 'industrial', 'motor', 'manufacturing', 'design', 'railway']
+    let weekDays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
     let now = new Date()
     let semester = now.getMonth() > 7 ? '1' : '2'
     let rawData = {
-        streams: [{}, {5: ['design', 'thermal']}],
-        rooms: {
-            general: '311 313 310 319 338 339 nb011',
-            drawing: '320 321',
-            workshop: 'Workshop',
-            computer: 'Lab 6'
-        },
+        streams: [{}, {}],
+        rooms: {},  // {drawing: '322 344', ...}
         days: '5',
         semester,
         year: now.getFullYear() - (semester == '1' ? 0 : 1),
-        students: [[20, 10], [32, 23, 78], [12], [23, 23, 34], [78, 14, 15, 13, 15]],
+        students: [],  // [[12, 34], []...]
         ects: ['5', '5'],
         mergeBelow: 40,
-        ectsDiv: {2: '2', 3: '1 2', 5: '2 3', 6: '3 3', 7: '2 5'} // how to divide ectses
+        ectsDiv: {} // how to divide ectses
     }
 
     export function getInput() {
-        let semester = Number(rawData.semester)
-        let bySec = nums => Object.fromEntries(nums.map((num, i) => [i + 1, isNaN(num) ? 0 : Number(num)]))
-        let byStream = nums => Object.fromEntries(nums.map((num, i) => [streams[i], isNaN(num) ? 0 : Number(num)]))
-        let weekDays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
         let ectsDiv = {}
-        for (let [ects, divs] of Object.entries(rawData.ectsDiv))
+        for (let [ects, divs] of Object.entries(rawData.ectsDiv)) {
             ectsDiv[ects] = divs.replace(/[^ \d]/g, '').split(' ').filter(div => div).map(div => Number(div))
-        let data = {
+            if (!ectsDiv[ects].length) {
+                return alert('You need to give the division for ECTS ' + ects + '.')
+            }
+        }
+        let semester = Number(rawData.semester)
+        let students = {}
+        for (let [batch, streams] of Object.entries(rawData.streams[semester - 1])) {
+            if (streams.length) {
+                students[batch] = {}
+                for (let [i, stream] of streams.entries())
+                    students[batch][stream] = rawData.students[batch - 1][i] || 0
+            } else {
+                students[batch] = {}
+                for (let [i, num] of rawData.students[batch - 1].entries())
+                    students[batch][i + 1] = num
+            }
+        }
+        return {
             rooms: Object.fromEntries(Object.entries(rawData.rooms).map(([label, rooms]) => [label, rooms.split(/(\s|,)+/).map(rm => rm.trim()).filter(rm => rm)])),
             semester,
             year: rawData.year,
             days: weekDays.slice(0, Number(rawData.days)),
             periods: rawData.ects.map(num => Number(num)),
-            students: {
-                1: bySec(rawData.students[0]),
-                2: bySec(rawData.students[1]),
-                3: bySec(rawData.students[2]),
-                4: rawData.semester == '1' ? bySec(rawData.students[3]) : byStream(rawData.students[3]),
-                5: byStream(rawData.students[4])
-            },
+            students,
             mergeBelow: rawData.mergeBelow,
             ectsDiv
         }
-        return {...data, year: data.year, semester: data.semester}
     }
 </script>
 
@@ -56,6 +57,22 @@
         labels = json.labels
         ectses = json.ectses
         data.streams = json.streams
+        // cached from last operation
+        let cache = json.input_cache
+        if (cache) {
+            for (let [label, rooms] of Object.entries(cache.rooms))
+                data.rooms[label] = rooms.join(' ')
+            for (let [batch, students] of Object.entries(cache.students))
+                data.students[batch - 1] = Object.values(students)
+            data.mergeBelow = cache.mergeBelow
+            for (let [ects, div] of Object.entries(cache.ectsDiv))
+                data.ectsDiv[ects] = div.join(' ')
+            data.days = cache.days.length
+        } else {
+            let maxBatch = Math.max(...[0, 1].map(i => Object.keys(json.streams[i])).flat().map(Number))
+            for (let iBatch = 0; iBatch < maxBatch; iBatch++)
+                data.students[iBatch] = ['']
+        }
     }))
 
     function addSection(index) {
@@ -140,22 +157,24 @@
         <legend>Students</legend>
         <table>
             {#each Object.entries(data.streams[data.semester - 1]) as [batch, streams]}
-                <tr>
-                    <th>Y{batch}</th>
-                    {#if streams.length}
-                        {#each [...streams.entries()] as [i, stream]}
-                            <td>{stream}:</td>
-                            <td><input type="number" min="1" max="99" bind:value={data.students[batch - 1][i]}></td>
-                        {/each}
-                    {:else}
-                        {#each [...data.students[batch - 1].entries()] as [i, _]}
-                            <td>S{i + 1}:</td>
-                            <td><input type="number" min="1" max="99" bind:value={data.students[batch - 1][i]}></td>
-                        {/each}
-                        <td><button on:click={addSection(batch - 1)}>+</button></td>
-                        <td><button on:click={remSection(batch - 1)}>x</button></td>
-                    {/if}
-                </tr>
+                {#if streams !== undefined}
+                    <tr>
+                        <th>Y{batch}</th>
+                        {#if streams.length}
+                            {#each [...streams.entries()] as [i, stream]}
+                                <td>{stream}:</td>
+                                <td><input type="number" min="1" max="99" bind:value={data.students[batch - 1][i]}></td>
+                            {/each}
+                        {:else}
+                            {#each [...data.students[batch - 1].entries()] as [i, _]}
+                                <td>S{i + 1}:</td>
+                                <td><input type="number" min="1" max="99" bind:value={data.students[batch - 1][i]}></td>
+                            {/each}
+                            <td><button on:click={addSection(batch - 1)}>+</button></td>
+                            <td><button on:click={remSection(batch - 1)}>x</button></td>
+                        {/if}
+                    </tr>
+                {/if}
             {/each}
         </table>
     </fieldset>
