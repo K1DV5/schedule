@@ -57,22 +57,21 @@
         labels = json.labels
         ectses = json.ectses
         data.streams = json.streams
+        // prepare students input places
+        let maxBatch = Math.max(...[0, 1].map(i => Object.keys(json.streams[i])).flat().map(Number))
+        for (let iBatch = 0; iBatch < maxBatch; iBatch++)
+            data.students[iBatch] = ['']
         // cached from last operation
         let cache = json.input_cache
-        if (cache) {
-            for (let [label, rooms] of Object.entries(cache.rooms))
-                data.rooms[label] = rooms.join(' ')
-            for (let [batch, students] of Object.entries(cache.students))
-                data.students[batch - 1] = Object.values(students)
-            data.mergeBelow = cache.mergeBelow
-            for (let [ects, div] of Object.entries(cache.ectsDiv))
-                data.ectsDiv[ects] = div.join(' ')
-            data.days = cache.days.length
-        } else {
-            let maxBatch = Math.max(...[0, 1].map(i => Object.keys(json.streams[i])).flat().map(Number))
-            for (let iBatch = 0; iBatch < maxBatch; iBatch++)
-                data.students[iBatch] = ['']
-        }
+        if (!cache) return
+        for (let [label, rooms] of Object.entries(cache.rooms))
+            data.rooms[label] = rooms.join(' ')
+        for (let [batch, students] of Object.entries(cache.students))
+            data.students[batch - 1] = Object.values(students)
+        data.mergeBelow = cache.mergeBelow
+        for (let [ects, div] of Object.entries(cache.ectsDiv))
+            data.ectsDiv[ects] = div.join(' ')
+        data.days = cache.days.length
     }))
 
     function addSection(index) {
@@ -157,24 +156,22 @@
         <legend>Students</legend>
         <table>
             {#each Object.entries(data.streams[data.semester - 1]) as [batch, streams]}
-                {#if streams !== undefined}
-                    <tr>
-                        <th>Y{batch}</th>
-                        {#if streams.length}
-                            {#each [...streams.entries()] as [i, stream]}
-                                <td>{stream}:</td>
-                                <td><input type="number" min="1" max="99" bind:value={data.students[batch - 1][i]}></td>
-                            {/each}
-                        {:else}
-                            {#each [...data.students[batch - 1].entries()] as [i, _]}
-                                <td>S{i + 1}:</td>
-                                <td><input type="number" min="1" max="99" bind:value={data.students[batch - 1][i]}></td>
-                            {/each}
-                            <td><button on:click={addSection(batch - 1)}>+</button></td>
-                            <td><button on:click={remSection(batch - 1)}>x</button></td>
-                        {/if}
-                    </tr>
-                {/if}
+                <tr>
+                    <th>Y{batch}</th>
+                    {#if streams.length}
+                        {#each [...streams.entries()] as [i, stream]}
+                            <td>{stream}:</td>
+                            <td><input type="number" min="1" max="99" bind:value={data.students[batch - 1][i]}></td>
+                        {/each}
+                    {:else}
+                        {#each [...data.students[batch - 1].entries()] as [i, _]}
+                            <td>S{i + 1}:</td>
+                            <td><input type="number" min="1" max="99" bind:value={data.students[batch - 1][i]}></td>
+                        {/each}
+                        <td><button on:click={addSection(batch - 1)}>+</button></td>
+                        <td><button on:click={remSection(batch - 1)}>x</button></td>
+                    {/if}
+                </tr>
             {/each}
         </table>
     </fieldset>

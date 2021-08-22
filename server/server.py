@@ -132,6 +132,7 @@ class handler(BaseHTTPRequestHandler):
 
     def init(self):
         self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', 'http://localhost:5000')  # cors
         self.end_headers()
         init_data = extract_subjects()  # for input
         input_cache_file = path.join('data', 'input-cache.json')
